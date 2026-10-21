@@ -1,0 +1,64 @@
+@startuml diagrama-componentes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S01 - Diagrama de Componentes (v1)
+' Arquitetura MVC: View (React) / Controller (Spring MVC REST) / Model (services, repositories, entidades)
+
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "Front-end (View) — React + Vite" as front {
+  component "Páginas\n(Login, Cadastro de Aluno,\nCadastro de Empresa, Vantagens,\nEnvio de Moedas, Extrato)" as Paginas
+  component "Cliente HTTP\n(Axios)" as ApiClient
+  component "Sessão\n(token JWT)" as Sessao
+}
+
+package "Back-end — Spring Boot (Java 21)" as back {
+  portin "HTTP" as httpPort
+
+  component "Segurança\n(Spring Security + JWT)" as Seguranca
+  component "Controllers REST\n(Spring MVC)" as Controllers
+  component "Services\n(regras de negócio)" as Services
+  component "Repositories\n(DAO — Spring Data JPA)" as Repositories
+  component "Entidades\n(model — JPA/Hibernate)" as Entidades
+  component "Notificação por E-mail\n(JavaMailSender)" as Email
+  component "Agendador de Crédito Semestral\n(@Scheduled)" as Agendador
+  component "Armazenamento de Imagens\n(fotos das vantagens)" as Imagens
+
+  interface "API REST\n(JSON)" as IRest
+  interface "NotificacaoService" as INotificacao
+  interface "JpaRepository" as IJpa
+}
+
+database "MySQL 8" as DB {
+  component "Banco moeda_estudantil" as Schema
+}
+
+cloud "Servidor SMTP" as SMTP
+
+' ===== Front-end =====
+Paginas --> ApiClient
+ApiClient --> Sessao : anexa token
+
+' ===== Front-end -> Back-end =====
+ApiClient --> httpPort : HTTPS / JSON
+httpPort --> Seguranca
+Seguranca --> IRest : requisições\nautenticadas
+IRest - Controllers
+
+' ===== Back-end interno =====
+Controllers --> Services
+Services --> IJpa
+IJpa - Repositories
+Repositories --> Entidades
+Services --> Entidades
+Services --> INotificacao
+INotificacao - Email
+Services --> Imagens
+Agendador --> Services : creditar 1.000\nmoedas/semestre
+
+' ===== Infraestrutura =====
+Repositories --> Schema : JDBC
+Email --> SMTP : SMTP
+
+@enduml

@@ -1,0 +1,152 @@
+@startuml diagrama-classes-camadas
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S01 - Diagrama de Classes (v1) - Camadas MVC: controller / service / repository
+' As entidades da camada model estão detalhadas em diagrama-classes.puml
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "controller" {
+  class AutenticacaoController {
+    + login(dto: LoginDTO): TokenDTO
+  }
+
+  class AlunoController {
+    + cadastrar(dto: AlunoDTO): AlunoDTO
+    + buscar(id: Long): AlunoDTO
+    + listar(): List<AlunoDTO>
+    + atualizar(id: Long, dto: AlunoDTO): AlunoDTO
+    + excluir(id: Long): void
+  }
+
+  class EmpresaParceiraController {
+    + cadastrar(dto: EmpresaDTO): EmpresaDTO
+    + buscar(id: Long): EmpresaDTO
+    + listar(): List<EmpresaDTO>
+    + atualizar(id: Long, dto: EmpresaDTO): EmpresaDTO
+    + excluir(id: Long): void
+  }
+
+  class VantagemController {
+    + cadastrar(dto: VantagemDTO, foto: MultipartFile): VantagemDTO
+    + listar(): List<VantagemDTO>
+    + atualizar(id: Long, dto: VantagemDTO): VantagemDTO
+    + excluir(id: Long): void
+  }
+
+  class InstituicaoEnsinoController {
+    + listar(): List<InstituicaoDTO>
+  }
+
+  class TransacaoController {
+    + enviarMoedas(dto: EnvioMoedasDTO): TransacaoDTO
+    + resgatarVantagem(vantagemId: Long): TransacaoDTO
+    + consultarExtrato(): ExtratoDTO
+  }
+}
+
+package "service" as service {
+  class AutenticacaoService {
+    + autenticar(email: String, senha: String): String
+  }
+
+  class AlunoService {
+    + cadastrar(aluno: Aluno): Aluno
+    + buscarPorId(id: Long): Aluno
+    + listar(): List<Aluno>
+    + atualizar(id: Long, aluno: Aluno): Aluno
+    + excluir(id: Long): void
+  }
+
+  class EmpresaParceiraService {
+    + cadastrar(empresa: EmpresaParceira): EmpresaParceira
+    + buscarPorId(id: Long): EmpresaParceira
+    + listar(): List<EmpresaParceira>
+    + atualizar(id: Long, empresa: EmpresaParceira): EmpresaParceira
+    + excluir(id: Long): void
+  }
+
+  class VantagemService {
+    + cadastrar(empresaId: Long, vantagem: Vantagem, foto: MultipartFile): Vantagem
+    + listarDisponiveis(): List<Vantagem>
+    + atualizar(id: Long, vantagem: Vantagem): Vantagem
+    + excluir(id: Long): void
+  }
+
+  class InstituicaoEnsinoService {
+    + listar(): List<InstituicaoEnsino>
+  }
+
+  class MoedaService {
+    + enviarMoedas(professorId: Long, alunoId: Long, valor: int, motivo: String): EnvioMoedas
+    + creditarMoedasSemestrais(semestre: String): void
+  }
+
+  class ResgateService {
+    + resgatarVantagem(alunoId: Long, vantagemId: Long): ResgateVantagem
+    - gerarCodigoCupom(): String
+  }
+
+  class ExtratoService {
+    + consultarExtrato(usuarioId: Long): Extrato
+  }
+
+  class CreditoSemestralScheduler {
+    + executar(): void
+  }
+
+  interface NotificacaoService <<interface>> {
+    + notificarRecebimentoMoedas(envio: EnvioMoedas): void
+    + enviarCupomAluno(resgate: ResgateVantagem): void
+    + notificarEmpresaParceira(resgate: ResgateVantagem): void
+  }
+
+  class EmailNotificacaoService
+}
+
+package "repository (DAO)" as repository {
+  interface UsuarioRepository <<interface>> {
+    + findByEmail(email: String): Optional<Usuario>
+  }
+  interface AlunoRepository <<interface>> {
+    + existsByCpf(cpf: String): boolean
+  }
+  interface ProfessorRepository <<interface>>
+  interface EmpresaParceiraRepository <<interface>> {
+    + existsByCnpj(cnpj: String): boolean
+  }
+  interface InstituicaoEnsinoRepository <<interface>>
+  interface VantagemRepository <<interface>> {
+    + findByAtivaTrue(): List<Vantagem>
+  }
+  interface TransacaoRepository <<interface>> {
+    + findByConta(conta: Conta): List<Transacao>
+    + existsCreditoSemestral(professor: Professor, semestre: String): boolean
+  }
+}
+
+' ===== controller -> service =====
+AutenticacaoController ..> AutenticacaoService
+AlunoController ..> AlunoService
+EmpresaParceiraController ..> EmpresaParceiraService
+VantagemController ..> VantagemService
+InstituicaoEnsinoController ..> InstituicaoEnsinoService
+TransacaoController ..> MoedaService
+TransacaoController ..> ResgateService
+TransacaoController ..> ExtratoService
+
+' ===== service -> service =====
+CreditoSemestralScheduler ..> MoedaService
+MoedaService ..> NotificacaoService
+ResgateService ..> NotificacaoService
+NotificacaoService <|.. EmailNotificacaoService
+
+' ===== service -> repository =====
+' (mapeamento detalhado de cada service para seus repositories no README, seção 6.3)
+service ..> repository : usa >
+
+@enduml

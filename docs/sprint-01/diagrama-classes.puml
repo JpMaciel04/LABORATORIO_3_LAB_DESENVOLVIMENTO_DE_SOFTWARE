@@ -1,0 +1,125 @@
+@startuml diagrama-classes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S01 - Diagrama de Classes (v1) - Modelo de Domínio (camada model)
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "model" {
+  abstract class Usuario {
+    - id: Long
+    - nome: String
+    - email: String
+    - senha: String
+  }
+
+  class Aluno {
+    - cpf: String
+    - rg: String
+    - curso: String
+  }
+
+  class Professor {
+    - cpf: String
+    - departamento: String
+  }
+
+  class EmpresaParceira {
+    - cnpj: String
+  }
+
+  class InstituicaoEnsino {
+    - id: Long
+    - nome: String
+  }
+
+  class Endereco <<embeddable>> {
+    - logradouro: String
+    - numero: String
+    - complemento: String
+    - bairro: String
+    - cidade: String
+    - estado: String
+    - cep: String
+  }
+
+  class Conta {
+    - id: Long
+    - saldo: int
+    + creditar(valor: int): void
+    + debitar(valor: int): void
+    + possuiSaldo(valor: int): boolean
+  }
+
+  abstract class Transacao {
+    - id: Long
+    - valor: int
+    - dataHora: LocalDateTime
+    + {abstract} getDescricao(): String
+  }
+
+  class CreditoSemestral {
+    - semestre: String
+  }
+
+  class EnvioMoedas {
+    - motivo: String
+  }
+
+  class ResgateVantagem {
+    - codigoCupom: String
+  }
+
+  class Vantagem {
+    - id: Long
+    - nome: String
+    - descricao: String
+    - fotoUrl: String
+    - custoMoedas: int
+    - ativa: boolean
+  }
+
+  class Extrato {
+    - saldoAtual: int
+    - transacoes: List<Transacao>
+  }
+}
+
+' ===== Usuários =====
+Usuario <|-- Aluno
+Usuario <|-- Professor
+Usuario <|-- EmpresaParceira
+
+Aluno "*" --> "1" InstituicaoEnsino : estuda em >
+Professor "*" --> "1" InstituicaoEnsino : vinculado a >
+Aluno *-- "1" Endereco : reside em >
+
+' ===== Moedas =====
+Aluno "1" *-- "1" Conta : possui >
+Professor "1" *-- "1" Conta : possui >
+
+Transacao <|-- CreditoSemestral
+Transacao <|-- EnvioMoedas
+Transacao <|-- ResgateVantagem
+Transacao "*" -right-> "0..1" Conta : origem >
+Transacao "*" -down-> "0..1" Conta : destino >
+
+' ===== Vantagens =====
+EmpresaParceira "1" *-- "*" Vantagem : oferece >
+ResgateVantagem "*" --> "1" Vantagem : resgata >
+
+' ===== Extrato (não persistido) =====
+Extrato ..> Conta : resume >
+Extrato o-- "*" Transacao
+
+legend right
+  **Uso de origem/destino por tipo de Transacao**
+  CreditoSemestral: origem vazia; destino = conta do professor
+  EnvioMoedas: origem = conta do professor; destino = conta do aluno
+  ResgateVantagem: origem = conta do aluno; destino vazio
+endlegend
+
+@enduml

@@ -1,0 +1,87 @@
+@startuml casos-de-uso
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S01 - Diagrama de Casos de Uso (v1)
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam shadowing false
+
+actor "Usuário" as Usuario
+actor "Aluno" as Aluno
+actor "Professor" as Professor
+actor "Empresa Parceira" as Empresa
+
+actor "Tempo\n(início do semestre)" as Tempo
+actor "Serviço de E-mail" as Email <<sistema externo>>
+
+Aluno --|> Usuario
+Professor --|> Usuario
+Empresa --|> Usuario
+
+rectangle "Sistema de Moeda Estudantil" {
+
+  usecase "UC01\nRealizar Login" as UC01
+
+  usecase "UC02\nManter Cadastro\nde Aluno" as UC02
+  usecase "UC03\nConsultar Instituições\nde Ensino" as UC03
+  usecase "UC08\nConsultar Vantagens" as UC08
+  usecase "UC09\nResgatar Vantagem" as UC09
+  usecase "UC12\nGerar Código\nde Cupom" as UC12
+
+  usecase "UC07\nConsultar Extrato" as UC07
+
+  usecase "UC06\nEnviar Moedas" as UC06
+
+  usecase "UC04\nManter Cadastro de\nEmpresa Parceira" as UC04
+  usecase "UC05\nManter Vantagens" as UC05
+
+  usecase "UC10\nEnviar Notificação\npor E-mail" as UC10
+  usecase "UC11\nCreditar Moedas\nSemestrais" as UC11
+}
+
+' --- Usuário (generalização) ---
+Usuario --> UC01
+
+' --- Aluno ---
+Aluno --> UC02
+Aluno --> UC07
+Aluno --> UC08
+Aluno --> UC09
+
+' --- Professor ---
+Professor --> UC06
+Professor --> UC07
+
+' --- Empresa Parceira ---
+Empresa --> UC04
+Empresa --> UC05
+
+' --- Atores secundários ---
+Tempo --> UC11
+UC10 --> Email
+
+' --- Relacionamentos <<include>> ---
+UC05 ..> UC01 : <<include>>
+UC06 ..> UC01 : <<include>>
+UC07 ..> UC01 : <<include>>
+UC08 ..> UC01 : <<include>>
+UC09 ..> UC01 : <<include>>
+
+UC02 ..> UC03 : <<include>>
+UC06 ..> UC10 : <<include>>
+UC09 ..> UC12 : <<include>>
+UC09 ..> UC10 : <<include>>
+
+legend right
+  **Observações**
+  UC02 / UC04: a inclusão (auto-cadastro) é pública;
+  consulta, alteração e exclusão exigem login (UC01).
+  UC06: RN05 saldo suficiente e motivo obrigatório;
+  RN06 aluno da mesma instituição; RN07 aviso por e-mail.
+  UC09: RN10 saldo suficiente e custo debitado;
+  RN11 código enviado ao aluno (cupom) e à empresa.
+  UC11: RN04 +1.000 moedas por semestre (acumulável).
+endlegend
+
+@enduml

@@ -1,0 +1,84 @@
+@startuml diagrama-componentes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S02 - Diagrama de Componentes (v2)
+' Arquitetura MVC: View (React) / Controller (Spring MVC REST) / Model (services, repositories, entidades)
+' Alterações em relação à v1: componente de Migrações (Flyway), proxy do Vite em desenvolvimento,
+' tratamento de erros da API e indicação dos componentes ainda planejados.
+
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+skinparam component {
+  BackgroundColor<<planejado>> #F3F4F6
+  BorderColor<<planejado>> #9CA3AF
+  FontColor<<planejado>> #6B7280
+  StereotypeFontColor<<planejado>> #6B7280
+}
+
+package "Front-end (View) — React + Vite" as front {
+  component "Páginas\n(Início, Alunos, Empresas parceiras:\nlistagem e formulários)" as Paginas
+  component "Services do front\n(alunoService, empresaService,\ninstituicaoService)" as ServicosFront
+  component "Cliente HTTP\n(Axios)" as ApiClient
+  component "Sessão\n(token JWT)" as Sessao <<planejado>>
+}
+
+package "Back-end — Spring Boot 3 (Java 21)" as back {
+  portin "HTTP" as httpPort
+
+  component "Segurança\n(Spring Security + JWT)" as Seguranca <<planejado>>
+  component "Controllers REST\n(Spring MVC + Bean Validation)" as Controllers
+  component "Tratamento de erros\n(@RestControllerAdvice)" as Erros
+  component "Services\n(regras de negócio, @Transactional)" as Services
+  component "Repositories\n(DAO — Spring Data JPA)" as Repositories
+  component "Entidades\n(model — JPA/Hibernate)" as Entidades
+  component "Migrações\n(Flyway — db/migration)" as Migracoes
+  component "Notificação por E-mail\n(JavaMailSender)" as Email <<planejado>>
+  component "Agendador de Crédito Semestral\n(@Scheduled)" as Agendador <<planejado>>
+  component "Armazenamento de Imagens\n(fotos das vantagens)" as Imagens <<planejado>>
+
+  interface "API REST\n(JSON)" as IRest
+  interface "NotificacaoService" as INotificacao
+  interface "JpaRepository" as IJpa
+}
+
+database "MySQL 8" as DB {
+  component "Banco moeda_estudantil" as Schema
+}
+
+cloud "Servidor SMTP" as SMTP
+
+' ===== Front-end =====
+Paginas --> ServicosFront
+ServicosFront --> ApiClient
+ApiClient ..> Sessao : anexa token
+
+' ===== Front-end -> Back-end =====
+ApiClient --> httpPort : HTTP / JSON\n(/api, proxy do Vite em dev)
+httpPort --> Seguranca
+Seguranca --> IRest : requisições\nautenticadas
+IRest - Controllers
+Controllers ..> Erros : exceções
+
+' ===== Back-end interno =====
+Controllers --> Services
+Services --> IJpa
+IJpa - Repositories
+Repositories --> Entidades
+Services --> Entidades
+Services ..> INotificacao
+INotificacao - Email
+Services ..> Imagens
+Agendador ..> Services : creditar 1.000\nmoedas/semestre
+
+' ===== Infraestrutura =====
+Repositories --> Schema : JDBC (Hibernate)
+Migracoes --> Schema : cria e versiona\no esquema
+Email ..> SMTP : SMTP
+
+legend right
+  Componentes em cinza (<<planejado>>) ainda não foram implementados.
+  Na Sprint 2, as requisições chegam direto aos controllers (sem JWT);
+  o Hibernate apenas valida o esquema criado pelo Flyway (ddl-auto=validate).
+endlegend
+
+@enduml

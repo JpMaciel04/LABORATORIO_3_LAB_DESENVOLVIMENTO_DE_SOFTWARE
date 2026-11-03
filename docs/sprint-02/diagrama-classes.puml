@@ -1,0 +1,148 @@
+@startuml diagrama-classes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S02 - Diagrama de Classes (v2) - Modelo de Domínio (camada model)
+' Alterações em relação à v1 (docs/sprint-01): exclusão lógica (ativo/desativar),
+' constante do crédito semestral e estratégias de mapeamento JPA anotadas.
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "model" {
+  abstract class Usuario <<Entity>> {
+    - id: Long
+    - nome: String
+    - email: String
+    - senha: String
+    - ativo: boolean
+    + desativar(): void
+  }
+
+  class Aluno <<Entity>> {
+    - cpf: String
+    - rg: String
+    - curso: String
+  }
+
+  class Professor <<Entity>> {
+    - cpf: String
+    - departamento: String
+  }
+
+  class EmpresaParceira <<Entity>> {
+    - cnpj: String
+    + desativar(): void
+  }
+
+  class InstituicaoEnsino <<Entity>> {
+    - id: Long
+    - nome: String
+  }
+
+  class Endereco <<Embeddable>> {
+    - logradouro: String
+    - numero: String
+    - complemento: String
+    - bairro: String
+    - cidade: String
+    - estado: String
+    - cep: String
+  }
+
+  class Conta <<Entity>> {
+    - id: Long
+    - saldo: int
+    + creditar(valor: int): void
+    + debitar(valor: int): void
+    + possuiSaldo(valor: int): boolean
+  }
+
+  abstract class Transacao <<Entity>> {
+    - id: Long
+    - valor: int
+    - dataHora: LocalDateTime
+    + {abstract} getDescricao(): String
+  }
+
+  class CreditoSemestral <<Entity>> {
+    + {static} MOEDAS_POR_SEMESTRE: int = 1000
+    - semestre: String
+  }
+
+  class EnvioMoedas <<Entity>> {
+    - motivo: String
+  }
+
+  class ResgateVantagem <<Entity>> {
+    - codigoCupom: String
+  }
+
+  class Vantagem <<Entity>> {
+    - id: Long
+    - nome: String
+    - descricao: String
+    - fotoUrl: String
+    - custoMoedas: int
+    - ativa: boolean
+    + desativar(): void
+  }
+
+  class Extrato {
+    - saldoAtual: int
+    - transacoes: List<Transacao>
+  }
+}
+
+' ===== Usuários =====
+Usuario <|-- Aluno
+Usuario <|-- Professor
+Usuario <|-- EmpresaParceira
+
+Aluno "*" --> "1" InstituicaoEnsino : estuda em >
+Professor "*" --> "1" InstituicaoEnsino : vinculado a >
+Aluno *-- "1" Endereco : reside em >
+
+' ===== Moedas =====
+Aluno "1" *-- "1" Conta : possui >
+Professor "1" *-- "1" Conta : possui >
+
+Transacao <|-- CreditoSemestral
+Transacao <|-- EnvioMoedas
+Transacao <|-- ResgateVantagem
+Transacao "*" -right-> "0..1" Conta : origem >
+Transacao "*" -down-> "0..1" Conta : destino >
+
+' ===== Vantagens =====
+EmpresaParceira "1" *-- "*" Vantagem : oferece >
+ResgateVantagem "*" --> "1" Vantagem : resgata >
+
+' ===== Extrato (não persistido) =====
+Extrato ..> Conta : resume >
+Extrato o-- "*" Transacao
+
+note top of Usuario
+  Herança JPA **JOINED**: tabela usuario
+  + aluno / professor / empresa_parceira
+  (mesma PK). desativar() = exclusão lógica,
+  usada quando há transações no histórico.
+end note
+
+legend right
+  **Uso de origem/destino por tipo de Transacao**
+  CreditoSemestral: origem vazia; destino = conta do professor
+  EnvioMoedas: origem = conta do professor; destino = conta do aluno
+  ResgateVantagem: origem = conta do aluno; destino vazio
+
+  **Mapeamento JPA**
+  Transacao: herança SINGLE_TABLE (tabela transacao, discriminador "tipo").
+  Endereco: @Embeddable, colunas na tabela aluno.
+  Extrato: montado em memória (não é entidade).
+
+  **v2 (Sprint 2)**: Usuario.ativo e desativar(); Vantagem.desativar();
+  EmpresaParceira.desativar() também desativa as vantagens (US12);
+  CreditoSemestral.MOEDAS_POR_SEMESTRE.
+endlegend
+
+@enduml

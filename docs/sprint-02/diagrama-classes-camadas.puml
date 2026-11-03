@@ -1,0 +1,148 @@
+@startuml diagrama-classes-camadas
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S02 - Diagrama de Classes (v2) - Camadas MVC: controller / service / repository
+' As entidades da camada model estão em diagrama-classes.puml e os DTOs em diagrama-classes-dto.puml.
+' Classes em cinza (<<planejado>>) fazem parte da arquitetura-alvo e ainda não foram implementadas;
+' as operações previstas para elas continuam descritas na v1 (docs/sprint-01/diagrama-classes-camadas.puml).
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+skinparam class {
+  BackgroundColor<<planejado>> #F3F4F6
+  BorderColor<<planejado>> #9CA3AF
+  FontColor<<planejado>> #6B7280
+  StereotypeFontColor<<planejado>> #6B7280
+}
+
+package "controller" {
+  class AlunoController {
+    + cadastrar(dto: AlunoRequestDTO): AlunoResponseDTO
+    + buscar(id: Long): AlunoResponseDTO
+    + listar(): List<AlunoResponseDTO>
+    + atualizar(id: Long, dto: AlunoRequestDTO): AlunoResponseDTO
+    + excluir(id: Long): void
+  }
+
+  class EmpresaParceiraController {
+    + cadastrar(dto: EmpresaParceiraRequestDTO): EmpresaParceiraResponseDTO
+    + buscar(id: Long): EmpresaParceiraResponseDTO
+    + listar(): List<EmpresaParceiraResponseDTO>
+    + atualizar(id: Long, dto: EmpresaParceiraRequestDTO): EmpresaParceiraResponseDTO
+    + excluir(id: Long): void
+  }
+
+  class InstituicaoEnsinoController {
+    + listar(): List<InstituicaoEnsinoDTO>
+  }
+
+  class AutenticacaoController <<planejado>>
+  class VantagemController <<planejado>>
+  class TransacaoController <<planejado>>
+}
+
+package "service" {
+  class AlunoService {
+    + cadastrar(aluno: Aluno, instituicaoId: Long): Aluno
+    + buscarPorId(id: Long): Aluno
+    + listar(): List<Aluno>
+    + atualizar(id: Long, aluno: Aluno, instituicaoId: Long): Aluno
+    + excluir(id: Long): void
+    - validarUnicidade(aluno: Aluno, idAtual: Long): void
+  }
+
+  class EmpresaParceiraService {
+    + cadastrar(empresa: EmpresaParceira): EmpresaParceira
+    + buscarPorId(id: Long): EmpresaParceira
+    + listar(): List<EmpresaParceira>
+    + atualizar(id: Long, empresa: EmpresaParceira): EmpresaParceira
+    + excluir(id: Long): void
+    - validarUnicidade(empresa: EmpresaParceira, idAtual: Long): void
+  }
+
+  class InstituicaoEnsinoService {
+    + listar(): List<InstituicaoEnsino>
+  }
+
+  class AutenticacaoService <<planejado>>
+  class VantagemService <<planejado>>
+  class MoedaService <<planejado>>
+  class ResgateService <<planejado>>
+  class ExtratoService <<planejado>>
+  class CreditoSemestralScheduler <<planejado>>
+  interface NotificacaoService <<planejado>>
+  class EmailNotificacaoService <<planejado>>
+}
+
+package "repository (DAO)" as repository {
+  interface AlunoRepository <<JpaRepository>> {
+    + existsByCpf(cpf: String): boolean
+    + existsByCpfAndIdNot(cpf: String, id: Long): boolean
+    + findByAtivoTrueOrderByNomeAsc(): List<Aluno>
+    + findByIdAndAtivoTrue(id: Long): Optional<Aluno>
+  }
+  interface UsuarioRepository <<JpaRepository>> {
+    + findByEmail(email: String): Optional<Usuario>
+    + existsByEmail(email: String): boolean
+    + existsByEmailAndIdNot(email: String, id: Long): boolean
+  }
+  interface InstituicaoEnsinoRepository <<JpaRepository>> {
+    + findAllByOrderByNomeAsc(): List<InstituicaoEnsino>
+  }
+  interface TransacaoRepository <<JpaRepository>> {
+    + findByConta(conta: Conta): List<Transacao>
+    + existsByConta(conta: Conta): boolean
+    + existsResgateByEmpresa(empresa: EmpresaParceira): boolean
+    + existsCreditoSemestral(professor: Professor, semestre: String): boolean
+  }
+  interface EmpresaParceiraRepository <<JpaRepository>> {
+    + existsByCnpj(cnpj: String): boolean
+    + existsByCnpjAndIdNot(cnpj: String, id: Long): boolean
+    + findByAtivoTrueOrderByNomeAsc(): List<EmpresaParceira>
+    + findByIdAndAtivoTrue(id: Long): Optional<EmpresaParceira>
+  }
+  interface ProfessorRepository <<JpaRepository>>
+  interface VantagemRepository <<JpaRepository>> {
+    + findByAtivaTrue(): List<Vantagem>
+  }
+}
+
+' ===== controller -> service =====
+AlunoController ..> AlunoService
+EmpresaParceiraController ..> EmpresaParceiraService
+InstituicaoEnsinoController ..> InstituicaoEnsinoService
+AutenticacaoController ..> AutenticacaoService
+VantagemController ..> VantagemService
+TransacaoController ..> MoedaService
+TransacaoController ..> ResgateService
+TransacaoController ..> ExtratoService
+
+' ===== service -> repository (implementados na Sprint 2) =====
+AlunoService ..> AlunoRepository
+AlunoService ..> UsuarioRepository
+AlunoService ..> InstituicaoEnsinoRepository
+AlunoService ..> TransacaoRepository
+EmpresaParceiraService ..> EmpresaParceiraRepository
+EmpresaParceiraService ..> UsuarioRepository
+EmpresaParceiraService ..> TransacaoRepository
+InstituicaoEnsinoService ..> InstituicaoEnsinoRepository
+
+' ===== serviços planejados =====
+CreditoSemestralScheduler ..> MoedaService
+MoedaService ..> NotificacaoService
+ResgateService ..> NotificacaoService
+NotificacaoService <|.. EmailNotificacaoService
+
+legend right
+  **v2 (Sprint 2)**
+  Assinaturas iguais às do código (DTOs de requisição e de resposta).
+  AlunoService e EmpresaParceiraService recebem o PasswordEncoder
+  (BCrypt, config/SenhaConfig) e consultam TransacaoRepository para
+  decidir entre exclusão física (sem histórico) e lógica (com histórico).
+  Mapeamento dos services planejados para seus repositórios: README, seção 6.4.
+endlegend
+
+@enduml

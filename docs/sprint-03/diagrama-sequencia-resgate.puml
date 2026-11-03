@@ -1,0 +1,60 @@
+@startuml diagrama-sequencia-resgate
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S03 - Diagrama de Sequência (v1) - Resgatar Vantagem (UC09)
+' Mostra uma requisição atravessando todas as camadas da arquitetura MVC.
+
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+hide footbox
+
+actor Aluno
+box "View" #E8F0F8
+  participant "Página do catálogo\n+ Axios" as View
+end box
+box "Controller" #FFF4D6
+  participant "JwtAutenticacaoFilter\n+ SegurancaConfig" as Filtro
+  participant TransacaoController as Controller
+end box
+box "Model" #E7F6EC
+  participant ResgateService as Service
+  participant "Aluno / Conta\n(entidades)" as Entidades
+  participant "Repositories\n(DAO)" as Repos
+  participant EmailNotificacaoService as Email
+end box
+database "MySQL" as DB
+participant "Servidor\nSMTP" as SMTP
+
+Aluno -> View : clica em "Resgatar"
+View -> Filtro : POST /api/transacoes/resgates/{id}\nAuthorization: Bearer token
+Filtro -> Filtro : valida assinatura e validade do token
+Filtro -> DB : usuário ainda está ativo?
+Filtro -> Filtro : perfil ALUNO pode resgatar?
+Filtro -> Controller : requisição autenticada
+
+Controller -> Service : resgatarVantagem(alunoId, vantagemId)
+activate Service
+note right of Service : @Transactional:\ntudo ou nada
+Service -> Repos : findByIdAndAtivoTrue(alunoId)\nfindByIdAndAtivaTrue(vantagemId)
+Repos -> DB : SELECT
+Service -> Entidades : conta.debitar(custo)
+note right of Entidades : RN10: saldo insuficiente\nlança RegraNegocioException (422)
+Service -> Service : gerarCodigoCupom()
+Service -> Repos : save(new ResgateVantagem(...))
+Repos -> DB : INSERT transacao
+Service -> Email : enviarCupomAluno(resgate, aluno)\nnotificarEmpresaParceira(resgate, aluno)
+note right of Email : monta os textos e\nagenda para depois do commit
+Service --> Controller : ResgateVantagem
+deactivate Service
+Service -> DB : COMMIT\nUPDATE conta SET saldo = ?, versao = versao + 1\nWHERE id = ? AND versao = ?
+note left of DB : se outra operação alterou o saldo:\nbloqueio otimista, rollback e HTTP 409
+
+Controller --> View : 201 Created + TransacaoDTO (codigoCupom)
+View --> Aluno : mostra o cupom e o novo saldo
+
+group Depois do commit, em segundo plano
+  Email -> SMTP : e-mail de cupom ao aluno
+  Email -> SMTP : e-mail de aviso à empresa\n(mesmo código)
+  note right of Email : falha no envio é registrada em log\ne não desfaz o resgate (US04)
+end
+
+@enduml

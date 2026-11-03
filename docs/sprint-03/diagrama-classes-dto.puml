@@ -1,0 +1,220 @@
+@startuml diagrama-classes-dto
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S03 - Diagrama de Classes (v2) - DTOs da API REST e tratamento de erros
+' Os controllers convertem DTO <-> entidade; os services trabalham apenas com entidades.
+' Alterações em relação à v1 (docs/sprint-02): DTOs de login, vantagens, transações e extrato;
+' novas respostas de erro (401, 403, 409 de concorrência e 413).
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "controller" {
+  class AutenticacaoController
+  class AlunoController
+  class EmpresaParceiraController
+  class InstituicaoEnsinoController
+  class VantagemController
+  class TransacaoController
+}
+
+package "dto" {
+  class LoginDTO <<record>> {
+    + email: String
+    + senha: String
+  }
+
+  class TokenDTO <<record>> {
+    + token: String
+    + id: Long
+    + nome: String
+    + email: String
+    + perfil: Perfil
+    + {static} from(sessao: Sessao): TokenDTO
+  }
+
+  class AlunoRequestDTO <<record>> {
+    + nome: String
+    + email: String
+    + senha: String
+    + cpf: String
+    + rg: String
+    + curso: String
+    + instituicaoId: Long
+    + toEntity(): Aluno
+  }
+
+  class AlunoResponseDTO <<record>> {
+    + id: Long
+    + nome: String
+    + email: String
+    + cpf: String
+    + rg: String
+    + curso: String
+    + saldo: int
+    + {static} from(aluno: Aluno): AlunoResponseDTO
+  }
+
+  class AlunoResumoDTO <<record>> {
+    + id: Long
+    + nome: String
+    + curso: String
+    + {static} from(aluno: Aluno): AlunoResumoDTO
+  }
+
+  class EnderecoDTO <<record>> {
+    + logradouro: String
+    + numero: String
+    + complemento: String
+    + bairro: String
+    + cidade: String
+    + estado: String
+    + cep: String
+    + toEntity(): Endereco
+    + {static} from(endereco: Endereco): EnderecoDTO
+  }
+
+  class InstituicaoEnsinoDTO <<record>> {
+    + id: Long
+    + nome: String
+    + {static} from(instituicao: InstituicaoEnsino): InstituicaoEnsinoDTO
+  }
+
+  class EmpresaParceiraRequestDTO <<record>> {
+    + nome: String
+    + cnpj: String
+    + email: String
+    + senha: String
+    + toEntity(): EmpresaParceira
+  }
+
+  class EmpresaParceiraResponseDTO <<record>> {
+    + id: Long
+    + nome: String
+    + cnpj: String
+    + email: String
+    + {static} from(empresa: EmpresaParceira): EmpresaParceiraResponseDTO
+  }
+
+  class VantagemRequestDTO <<record>> {
+    + nome: String
+    + descricao: String
+    + custoMoedas: Integer
+    + toEntity(): Vantagem
+  }
+
+  class VantagemResponseDTO <<record>> {
+    + id: Long
+    + nome: String
+    + descricao: String
+    + fotoUrl: String
+    + custoMoedas: int
+    + ativa: boolean
+    + empresa: String
+    + {static} from(vantagem: Vantagem): VantagemResponseDTO
+  }
+
+  class EnvioMoedasDTO <<record>> {
+    + alunoId: Long
+    + valor: Integer
+    + motivo: String
+  }
+
+  class TransacaoDTO <<record>> {
+    + id: Long
+    + tipo: Tipo
+    + dataHora: LocalDateTime
+    + valor: int
+    + entrada: Boolean
+    + descricao: String
+    + semestre: String
+    + professor: String
+    + aluno: String
+    + motivo: String
+    + vantagem: String
+    + empresa: String
+    + codigoCupom: String
+    + {static} from(transacao: Transacao, extrato: Extrato): TransacaoDTO
+    + {static} from(transacao: Transacao): TransacaoDTO
+  }
+
+  class ExtratoDTO <<record>> {
+    + saldoAtual: int
+    + {static} from(extrato: Extrato): ExtratoDTO
+  }
+
+  interface ValidacaoCadastro <<grupo de validação>>
+
+  class ErroDTO <<record>> {
+    + status: int
+    + mensagem: String
+    + campos: Map<String, String>
+  }
+}
+
+package "exception" {
+  class GlobalExceptionHandler <<RestControllerAdvice>> {
+    + tratarValidacao(ex: MethodArgumentNotValidException): ErroDTO
+    + tratarRegraNegocio(ex: RegraNegocioException): ErroDTO
+    + tratarNaoEncontrado(ex: RecursoNaoEncontradoException): ErroDTO
+    + tratarCorpoInvalido(ex: HttpMessageNotReadableException): ErroDTO
+    + tratarCredenciaisInvalidas(ex: CredenciaisInvalidasException): ErroDTO
+    + tratarAcessoNegado(ex: AccessDeniedException): ErroDTO
+    + tratarArquivoGrande(ex: MaxUploadSizeExceededException): ErroDTO
+    + tratarConflitoDeSaldo(ex: ConcurrencyFailureException): ErroDTO
+    + tratarIntegridade(ex: DataIntegrityViolationException): ErroDTO
+  }
+  class RegraNegocioException {
+    - campo: String
+  }
+  class RecursoNaoEncontradoException
+  class CredenciaisInvalidasException
+}
+
+AutenticacaoController ..> LoginDTO : recebe
+AutenticacaoController ..> TokenDTO : devolve
+AlunoController ..> AlunoRequestDTO : recebe
+AlunoController ..> AlunoResponseDTO : devolve
+AlunoController ..> AlunoResumoDTO : devolve
+EmpresaParceiraController ..> EmpresaParceiraRequestDTO : recebe
+EmpresaParceiraController ..> EmpresaParceiraResponseDTO : devolve
+InstituicaoEnsinoController ..> InstituicaoEnsinoDTO : devolve
+VantagemController ..> VantagemRequestDTO : recebe
+VantagemController ..> VantagemResponseDTO : devolve
+TransacaoController ..> EnvioMoedasDTO : recebe
+TransacaoController ..> TransacaoDTO : devolve
+TransacaoController ..> ExtratoDTO : devolve
+
+AlunoRequestDTO *-- "1" EnderecoDTO
+AlunoResponseDTO *-- "1" EnderecoDTO
+AlunoResponseDTO *-- "1" InstituicaoEnsinoDTO
+ExtratoDTO *-- "*" TransacaoDTO
+AlunoRequestDTO ..> ValidacaoCadastro
+EmpresaParceiraRequestDTO ..> ValidacaoCadastro
+
+GlobalExceptionHandler ..> ErroDTO : responde
+GlobalExceptionHandler ..> RegraNegocioException
+GlobalExceptionHandler ..> RecursoNaoEncontradoException
+GlobalExceptionHandler ..> CredenciaisInvalidasException
+
+legend right
+  **ValidacaoCadastro**: grupo do Bean Validation aplicado só no POST
+  (a senha é obrigatória no cadastro; na alteração, em branco mantém a atual).
+
+  **Respostas de erro (ErroDTO)**
+  400 campos inválidos (@NotBlank, @Email, @CPF, @CNPJ, @Positive...)
+  401 não autenticado ou credenciais incorretas
+  403 sem permissão (outro perfil ou registro de outro usuário)
+  404 recurso não encontrado
+  409 restrição do banco violada ou conflito de saldo (concorrência)
+  413 foto acima de 5 MB
+  422 regra de negócio (saldo insuficiente, outra instituição, CPF já em uso...)
+
+  **v2 (Sprint 3)**: DTOs de login, vantagens, transações e extrato;
+  respostas 401, 403, 409 de concorrência e 413.
+endlegend
+
+@enduml

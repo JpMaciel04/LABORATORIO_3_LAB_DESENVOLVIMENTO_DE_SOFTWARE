@@ -1,0 +1,28 @@
+# Back-end (Maven)
+backend/target/
+
+# Fotos das vantagens enviadas pelas empresas
+backend/uploads/
+
+# Front-end (Node / Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# IDEs e sistema operacional
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Pacotes de entrega gerados localmente
+*.zip

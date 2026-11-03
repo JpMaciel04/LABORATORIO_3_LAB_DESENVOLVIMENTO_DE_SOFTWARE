@@ -1,0 +1,252 @@
+@startuml diagrama-classes-camadas
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S03 - Diagrama de Classes (v3) - Camadas MVC: controller / security / service / repository
+' As entidades da camada model estão em diagrama-classes.puml e os DTOs em diagrama-classes-dto.puml.
+' Alterações em relação à v2 (docs/sprint-02): todas as classes <<planejado>> foram implementadas
+' e o pacote security foi criado.
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "controller" {
+  class AutenticacaoController {
+    + login(dto: LoginDTO): TokenDTO
+  }
+
+  class AlunoController {
+    + cadastrar(dto: AlunoRequestDTO): AlunoResponseDTO
+    + buscar(id: Long): AlunoResponseDTO
+    + listar(professor: UsuarioAutenticado): List<AlunoResumoDTO>
+    + atualizar(id: Long, dto: AlunoRequestDTO): AlunoResponseDTO
+    + excluir(id: Long): void
+  }
+
+  class EmpresaParceiraController {
+    + cadastrar(dto: EmpresaParceiraRequestDTO): EmpresaParceiraResponseDTO
+    + buscar(id: Long): EmpresaParceiraResponseDTO
+    + listar(): List<EmpresaParceiraResponseDTO>
+    + atualizar(id: Long, dto: EmpresaParceiraRequestDTO): EmpresaParceiraResponseDTO
+    + excluir(id: Long): void
+  }
+
+  class InstituicaoEnsinoController {
+    + listar(): List<InstituicaoEnsinoDTO>
+  }
+
+  class VantagemController {
+    + cadastrar(dto: VantagemRequestDTO, foto: MultipartFile, empresa: UsuarioAutenticado): VantagemResponseDTO
+    + listar(): List<VantagemResponseDTO>
+    + listarMinhas(empresa: UsuarioAutenticado): List<VantagemResponseDTO>
+    + buscar(id: Long, empresa: UsuarioAutenticado): VantagemResponseDTO
+    + atualizar(id: Long, dto: VantagemRequestDTO, foto: MultipartFile, empresa: UsuarioAutenticado): VantagemResponseDTO
+    + excluir(id: Long, empresa: UsuarioAutenticado): void
+  }
+
+  class TransacaoController {
+    + enviarMoedas(dto: EnvioMoedasDTO, professor: UsuarioAutenticado): TransacaoDTO
+    + resgatarVantagem(vantagemId: Long, aluno: UsuarioAutenticado): TransacaoDTO
+    + consultarExtrato(usuario: UsuarioAutenticado): ExtratoDTO
+  }
+}
+
+package "security" {
+  class JwtAutenticacaoFilter <<OncePerRequestFilter>> {
+    # doFilterInternal(request, response, filterChain): void
+  }
+
+  class JwtService {
+    + gerarToken(usuario: Usuario): String
+    + validarToken(token: String): Optional<UsuarioAutenticado>
+  }
+
+  class UsuarioAutenticado <<record>> {
+    + id: Long
+    + perfil: Perfil
+    + autoridades(): List<GrantedAuthority>
+  }
+
+  class Sessao <<record>> {
+    + token: String
+    + usuario: Usuario
+  }
+}
+
+package "service" {
+  class AutenticacaoService {
+    + autenticar(email: String, senha: String): Sessao
+  }
+
+  class AlunoService {
+    + cadastrar(aluno: Aluno, instituicaoId: Long): Aluno
+    + buscarPorId(id: Long): Aluno
+    + listarDaInstituicaoDoProfessor(professorId: Long): List<Aluno>
+    + atualizar(id: Long, dados: Aluno, instituicaoId: Long): Aluno
+    + excluir(id: Long): void
+    - validarUnicidade(aluno: Aluno, idAtual: Long): void
+  }
+
+  class EmpresaParceiraService {
+    + cadastrar(empresa: EmpresaParceira): EmpresaParceira
+    + buscarPorId(id: Long): EmpresaParceira
+    + listar(): List<EmpresaParceira>
+    + atualizar(id: Long, dados: EmpresaParceira): EmpresaParceira
+    + excluir(id: Long): void
+    - validarUnicidade(empresa: EmpresaParceira, idAtual: Long): void
+  }
+
+  class InstituicaoEnsinoService {
+    + listar(): List<InstituicaoEnsino>
+  }
+
+  class VantagemService {
+    + cadastrar(empresaId: Long, vantagem: Vantagem, foto: MultipartFile): Vantagem
+    + listarDisponiveis(): List<Vantagem>
+    + listarDaEmpresa(empresaId: Long): List<Vantagem>
+    + buscarDaEmpresa(empresaId: Long, id: Long): Vantagem
+    + atualizar(empresaId: Long, id: Long, dados: Vantagem, foto: MultipartFile): Vantagem
+    + excluir(empresaId: Long, id: Long): void
+  }
+
+  class ArmazenamentoImagemService {
+    + salvar(foto: MultipartFile): String
+    + remover(fotoUrl: String): void
+  }
+
+  class MoedaService {
+    + enviarMoedas(professorId: Long, alunoId: Long, valor: int, motivo: String): EnvioMoedas
+    + creditarMoedasSemestrais(semestre: String): int
+  }
+
+  class ResgateService {
+    + resgatarVantagem(alunoId: Long, vantagemId: Long): ResgateVantagem
+    - gerarCodigoCupom(): String
+  }
+
+  class ExtratoService {
+    + consultarExtrato(usuarioId: Long): Extrato
+  }
+
+  class CreditoSemestralScheduler {
+    + executar(): void
+    + aoIniciar(): void
+  }
+
+  interface NotificacaoService {
+    + notificarRecebimentoMoedas(envio: EnvioMoedas, professor: Professor, aluno: Aluno): void
+    + enviarCupomAluno(resgate: ResgateVantagem, aluno: Aluno): void
+    + notificarEmpresaParceira(resgate: ResgateVantagem, aluno: Aluno): void
+  }
+
+  class EmailNotificacaoService
+}
+
+package "repository (DAO)" as repository {
+  interface AlunoRepository <<JpaRepository>> {
+    + existsByCpf(cpf: String): boolean
+    + existsByCpfAndIdNot(cpf: String, id: Long): boolean
+    + findByInstituicaoIdAndAtivoTrueOrderByNomeAsc(instituicaoId: Long): List<Aluno>
+    + findByIdAndAtivoTrue(id: Long): Optional<Aluno>
+    + findTitulares(contaIds: Collection<Long>): List<TitularConta>
+  }
+  interface ProfessorRepository <<JpaRepository>> {
+    + findByIdAndAtivoTrue(id: Long): Optional<Professor>
+    + findByAtivoTrue(): List<Professor>
+    + findTitulares(contaIds: Collection<Long>): List<TitularConta>
+  }
+  interface UsuarioRepository <<JpaRepository>> {
+    + findByEmailAndAtivoTrue(email: String): Optional<Usuario>
+    + existsByIdAndAtivoTrue(id: Long): boolean
+    + existsByEmail(email: String): boolean
+    + existsByEmailAndIdNot(email: String, id: Long): boolean
+  }
+  interface InstituicaoEnsinoRepository <<JpaRepository>> {
+    + findAllByOrderByNomeAsc(): List<InstituicaoEnsino>
+  }
+  interface TransacaoRepository <<JpaRepository>> {
+    + findByConta(conta: Conta): List<Transacao>
+    + existsByConta(conta: Conta): boolean
+    + existsResgateByEmpresa(empresa: EmpresaParceira): boolean
+    + existsCreditoSemestral(professor: Professor, semestre: String): boolean
+  }
+  interface EmpresaParceiraRepository <<JpaRepository>> {
+    + existsByCnpj(cnpj: String): boolean
+    + existsByCnpjAndIdNot(cnpj: String, id: Long): boolean
+    + findByAtivoTrueOrderByNomeAsc(): List<EmpresaParceira>
+    + findByIdAndAtivoTrue(id: Long): Optional<EmpresaParceira>
+  }
+  interface VantagemRepository <<JpaRepository>> {
+    + findByAtivaTrueOrderByNomeAsc(): List<Vantagem>
+    + findByIdAndAtivaTrue(id: Long): Optional<Vantagem>
+    + findByEmpresaIdOrderByNomeAsc(empresaId: Long): List<Vantagem>
+    + findByIdAndEmpresaId(id: Long, empresaId: Long): Optional<Vantagem>
+  }
+  interface TitularConta <<projeção>> {
+    + getContaId(): Long
+    + getNome(): String
+  }
+}
+
+' ===== controller -> service =====
+AutenticacaoController ..> AutenticacaoService
+AlunoController ..> AlunoService
+EmpresaParceiraController ..> EmpresaParceiraService
+InstituicaoEnsinoController ..> InstituicaoEnsinoService
+VantagemController ..> VantagemService
+TransacaoController ..> MoedaService
+TransacaoController ..> ResgateService
+TransacaoController ..> ExtratoService
+
+' ===== segurança =====
+JwtAutenticacaoFilter ..> JwtService
+JwtAutenticacaoFilter ..> UsuarioRepository
+JwtService ..> UsuarioAutenticado
+AutenticacaoService ..> JwtService
+AutenticacaoService ..> Sessao
+AutenticacaoService ..> UsuarioRepository
+
+' ===== service -> service =====
+CreditoSemestralScheduler ..> MoedaService
+MoedaService ..> NotificacaoService
+ResgateService ..> NotificacaoService
+NotificacaoService <|.. EmailNotificacaoService
+VantagemService ..> ArmazenamentoImagemService
+EmpresaParceiraService ..> ArmazenamentoImagemService
+
+' ===== service -> repository =====
+AlunoService ..> AlunoRepository
+AlunoService ..> UsuarioRepository
+AlunoService ..> InstituicaoEnsinoRepository
+AlunoService ..> ProfessorRepository
+AlunoService ..> TransacaoRepository
+EmpresaParceiraService ..> EmpresaParceiraRepository
+EmpresaParceiraService ..> UsuarioRepository
+EmpresaParceiraService ..> TransacaoRepository
+InstituicaoEnsinoService ..> InstituicaoEnsinoRepository
+VantagemService ..> VantagemRepository
+VantagemService ..> EmpresaParceiraRepository
+MoedaService ..> ProfessorRepository
+MoedaService ..> AlunoRepository
+MoedaService ..> TransacaoRepository
+ResgateService ..> AlunoRepository
+ResgateService ..> VantagemRepository
+ResgateService ..> TransacaoRepository
+ExtratoService ..> UsuarioRepository
+ExtratoService ..> AlunoRepository
+ExtratoService ..> ProfessorRepository
+ExtratoService ..> TransacaoRepository
+
+legend right
+  **v3 (Sprint 3)**
+  Assinaturas iguais às do código; parâmetros resolvidos pelo framework
+  (UriComponentsBuilder) foram omitidos.
+  UsuarioAutenticado é injetado com @AuthenticationPrincipal:
+  o autor de cada operação vem do token, nunca da requisição.
+  As regras de acesso por perfil estão em config/SegurancaConfig;
+  a posse do registro, em @PreAuthorize nos controllers.
+endlegend
+
+@enduml

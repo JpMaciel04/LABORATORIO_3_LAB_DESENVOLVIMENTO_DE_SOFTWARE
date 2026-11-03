@@ -1,0 +1,143 @@
+@startuml modelo-er
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S02 - Modelo Entidade-Relacionamento (v1) - notação pé de galinha (IE)
+' Implementado pela migração backend/src/main/resources/db/migration/V1__criar_tabelas.sql
+
+hide circle
+hide empty members
+skinparam linetype ortho
+skinparam shadowing false
+skinparam nodesep 70
+skinparam ranksep 60
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #1F4E79
+  HeaderBackgroundColor #E8F0F8
+}
+
+entity "instituicao_ensino" as instituicao {
+  * id : BIGINT <<PK>>
+  --
+  * nome : VARCHAR(150) <<UK>>
+}
+
+entity "usuario" as usuario {
+  * id : BIGINT <<PK>>
+  --
+  * tipo : VARCHAR(20)
+  * nome : VARCHAR(120)
+  * email : VARCHAR(120) <<UK>>
+  * senha : VARCHAR(60)
+  * ativo : BOOLEAN
+}
+
+entity "aluno" as aluno {
+  * id : BIGINT <<PK, FK>>
+  --
+  * cpf : VARCHAR(11) <<UK>>
+  * rg : VARCHAR(20)
+  * curso : VARCHAR(100)
+  * logradouro : VARCHAR(150)
+  * numero : VARCHAR(10)
+    complemento : VARCHAR(60)
+  * bairro : VARCHAR(80)
+  * cidade : VARCHAR(80)
+  * estado : VARCHAR(2)
+  * cep : VARCHAR(8)
+  * instituicao_id : BIGINT <<FK>>
+  * conta_id : BIGINT <<FK, UK>>
+}
+
+entity "professor" as professor {
+  * id : BIGINT <<PK, FK>>
+  --
+  * cpf : VARCHAR(11) <<UK>>
+  * departamento : VARCHAR(100)
+  * instituicao_id : BIGINT <<FK>>
+  * conta_id : BIGINT <<FK, UK>>
+}
+
+entity "empresa_parceira" as empresa {
+  * id : BIGINT <<PK, FK>>
+  --
+  * cnpj : VARCHAR(14) <<UK>>
+}
+
+entity "conta" as conta {
+  * id : BIGINT <<PK>>
+  --
+  * saldo : INT
+}
+
+entity "vantagem" as vantagem {
+  * id : BIGINT <<PK>>
+  --
+  * nome : VARCHAR(120)
+  * descricao : VARCHAR(1000)
+  * foto_url : VARCHAR(500)
+  * custo_moedas : INT
+  * ativa : BOOLEAN
+  * empresa_id : BIGINT <<FK>>
+}
+
+entity "transacao" as transacao {
+  * id : BIGINT <<PK>>
+  --
+  * tipo : VARCHAR(30)
+  * valor : INT
+  * data_hora : DATETIME(6)
+    conta_origem_id : BIGINT <<FK>>
+    conta_destino_id : BIGINT <<FK>>
+    semestre : VARCHAR(6)
+    motivo : VARCHAR(500)
+    codigo_cupom : VARCHAR(20) <<UK>>
+    vantagem_id : BIGINT <<FK>>
+}
+
+' ===== Especialização de usuario (herança JOINED: mesma PK) =====
+usuario ||-down-o| aluno : é um
+usuario ||-down-o| professor : é um
+usuario ||-down-o| empresa : é uma
+
+' ===== Vínculo com a instituição =====
+instituicao ||-left-o{ aluno : matricula
+instituicao ||-right-o{ professor : vincula
+
+' ===== Contas de moedas =====
+aluno |o-down-|| conta : possui
+professor |o-down-|| conta : possui
+
+' ===== Vantagens e transações =====
+empresa ||-down-o{ vantagem : oferece
+conta |o-down-o{ transacao : origem
+conta |o-down-o{ transacao : destino
+vantagem |o-down-o{ transacao : resgatada em
+
+note right of usuario
+  **tipo** (discriminador): ALUNO, PROFESSOR ou EMPRESA.
+  **email** é o login de todos os perfis (único).
+  **senha** guarda apenas o hash BCrypt.
+  **ativo** = FALSE: exclusão lógica, usada quando
+  o usuário possui histórico de transações.
+end note
+
+note bottom of transacao
+  **tipo** (discriminador) define as colunas obrigatórias (CHECK ck_transacao_tipo):
+  CREDITO_SEMESTRAL: semestre e conta_destino (sem origem)
+  ENVIO_MOEDAS: motivo, conta_origem e conta_destino
+  RESGATE_VANTAGEM: codigo_cupom, vantagem e conta_origem (sem destino)
+  UNIQUE (conta_destino_id, semestre): no máximo um crédito por semestre (RN04).
+  CHECK valor > 0.
+end note
+
+note bottom of conta
+  CHECK saldo >= 0
+end note
+
+legend right
+  **Legenda**
+  * atributo obrigatório (NOT NULL)
+  PK chave primária · FK chave estrangeira · UK valor único
+endlegend
+
+@enduml

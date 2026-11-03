@@ -1,0 +1,3 @@
+# Maven Wrapper: script Unix com LF e script Windows com CRLF, em qualquer sistema
+/mvnw text eol=lf
+*.cmd text eol=crlf

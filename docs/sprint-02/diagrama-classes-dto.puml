@@ -1,0 +1,123 @@
+@startuml diagrama-classes-dto
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab03S02 - Diagrama de Classes (v1) - DTOs da API REST e tratamento de erros
+' Os controllers convertem DTO <-> entidade; os services trabalham apenas com entidades.
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "controller" {
+  class AlunoController
+  class EmpresaParceiraController
+  class InstituicaoEnsinoController
+}
+
+package "dto" {
+  class AlunoRequestDTO <<record>> {
+    + nome: String
+    + email: String
+    + senha: String
+    + cpf: String
+    + rg: String
+    + curso: String
+    + instituicaoId: Long
+    + toEntity(): Aluno
+  }
+
+  class AlunoResponseDTO <<record>> {
+    + id: Long
+    + nome: String
+    + email: String
+    + cpf: String
+    + rg: String
+    + curso: String
+    + saldo: int
+    + {static} from(aluno: Aluno): AlunoResponseDTO
+  }
+
+  class EnderecoDTO <<record>> {
+    + logradouro: String
+    + numero: String
+    + complemento: String
+    + bairro: String
+    + cidade: String
+    + estado: String
+    + cep: String
+    + toEntity(): Endereco
+    + {static} from(endereco: Endereco): EnderecoDTO
+  }
+
+  class InstituicaoEnsinoDTO <<record>> {
+    + id: Long
+    + nome: String
+    + {static} from(instituicao: InstituicaoEnsino): InstituicaoEnsinoDTO
+  }
+
+  class EmpresaParceiraRequestDTO <<record>> {
+    + nome: String
+    + cnpj: String
+    + email: String
+    + senha: String
+    + toEntity(): EmpresaParceira
+  }
+
+  class EmpresaParceiraResponseDTO <<record>> {
+    + id: Long
+    + nome: String
+    + cnpj: String
+    + email: String
+    + {static} from(empresa: EmpresaParceira): EmpresaParceiraResponseDTO
+  }
+
+  interface ValidacaoCadastro <<grupo de validação>>
+
+  class ErroDTO <<record>> {
+    + status: int
+    + mensagem: String
+    + campos: Map<String, String>
+  }
+}
+
+package "exception" {
+  class GlobalExceptionHandler <<RestControllerAdvice>> {
+    + tratarValidacao(ex: MethodArgumentNotValidException): ErroDTO
+    + tratarRegraNegocio(ex: RegraNegocioException): ErroDTO
+    + tratarNaoEncontrado(ex: RecursoNaoEncontradoException): ErroDTO
+  }
+  class RegraNegocioException {
+    - campo: String
+  }
+  class RecursoNaoEncontradoException
+}
+
+AlunoController ..> AlunoRequestDTO : recebe
+AlunoController ..> AlunoResponseDTO : devolve
+EmpresaParceiraController ..> EmpresaParceiraRequestDTO : recebe
+EmpresaParceiraController ..> EmpresaParceiraResponseDTO : devolve
+InstituicaoEnsinoController ..> InstituicaoEnsinoDTO : devolve
+
+AlunoRequestDTO *-- "1" EnderecoDTO
+AlunoResponseDTO *-- "1" EnderecoDTO
+AlunoResponseDTO *-- "1" InstituicaoEnsinoDTO
+AlunoRequestDTO ..> ValidacaoCadastro
+EmpresaParceiraRequestDTO ..> ValidacaoCadastro
+
+GlobalExceptionHandler ..> ErroDTO : responde
+GlobalExceptionHandler ..> RegraNegocioException
+GlobalExceptionHandler ..> RecursoNaoEncontradoException
+
+legend right
+  **ValidacaoCadastro**: grupo do Bean Validation aplicado só no POST
+  (a senha é obrigatória no cadastro; na alteração, em branco mantém a atual).
+
+  **Respostas de erro (ErroDTO)**
+  400 campos inválidos (@NotBlank, @Email, @CPF, @CNPJ, @Pattern...)
+  404 recurso não encontrado
+  409 restrição do banco violada (requisições concorrentes)
+  422 regra de negócio (CPF/CNPJ/e-mail já em uso, instituição inexistente)
+endlegend
+
+@enduml

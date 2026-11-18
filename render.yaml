@@ -1,0 +1,59 @@
+# Blueprint do Render (Lab04S02): cria a API REST e o banco PostgreSQL de uma só vez.
+# Render → New → Blueprint → selecione este repositório. O front-end fica na Vercel (frontend/vercel.json).
+# Implantação descrita em docs/sprint-05/diagrama-implantacao.puml e na seção 16 do README.
+
+services:
+  - type: web
+    name: moeda-estudantil-api
+    runtime: docker
+    plan: free
+    # Região mais próxima do Brasil; o banco precisa estar na mesma região para usar a rede privada.
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Rota pública que também consulta o banco: o Render só libera a nova versão se ela responder.
+    healthCheckPath: /api/instituicoes
+    # Só alterações no back-end geram uma nova implantação da API.
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      # PostgreSQL + proxy HTTPS (application-nuvem.properties) e dados de demonstração (db/demo).
+      - key: SPRING_PROFILES_ACTIVE
+        value: nuvem,demo
+      - key: DB_HOST
+        fromDatabase:
+          name: moeda-estudantil-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: moeda-estudantil-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: moeda-estudantil-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: moeda-estudantil-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: moeda-estudantil-db
+          property: password
+      # Segredo fixo dos tokens: sem ele, todos teriam que entrar de novo a cada reinício da API.
+      - key: JWT_SECRET
+        generateValue: true
+      # Endereço do front-end na Vercel (ex.: https://moeda-estudantil.vercel.app), pedido na criação do Blueprint.
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: moeda-estudantil-db
+    plan: free
+    region: virginia
+    postgresMajorVersion: "17"
+    databaseName: moeda_estudantil
+    user: moeda_estudantil
+    # Sem acesso pela internet: só a API, pela rede privada do Render, conecta ao banco.
+    ipAllowList: []

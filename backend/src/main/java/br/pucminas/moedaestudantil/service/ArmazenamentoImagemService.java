@@ -1,55 +1,81 @@
 package br.pucminas.moedaestudantil.service;
 
 import br.pucminas.moedaestudantil.exception.RegraNegocioException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import br.pucminas.moedaestudantil.model.Foto;
+import br.pucminas.moedaestudantil.repository.FotoRepository;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
-/** Guarda as fotos das vantagens em disco; a entidade Vantagem guarda apenas a URL (RN09). */
+/**
+ * Guarda as fotos das vantagens no banco (tabela foto); a entidade Vantagem guarda apenas a URL (RN09).
+ * Na nuvem, o disco do servidor é apagado a cada reinício, por isso as fotos não ficam mais em disco (Lab04S02).
+ * As operações participam da transação de quem chama: se o cadastro da vantagem falhar, a foto também é descartada.
+ */
 @Service
 public class ArmazenamentoImagemService {
 
     public static final String URL_BASE = "/api/fotos/";
 
-    private static final Logger log = LoggerFactory.getLogger(ArmazenamentoImagemService.class);
+    /** Fotos que acompanham o perfil demo (db/demo); ficam dentro do JAR, não no banco. */
+    private static final String PASTA_DEMO = "fotos-demo/";
+    /** Nomes gerados pelo sistema e das fotos de demonstração; impede caminhos como "../". */
+    private static final Pattern NOME_VALIDO = Pattern.compile("[A-Za-z0-9-]+\\.(jpg|png)");
     private static final byte[] ASSINATURA_JPG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] ASSINATURA_PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
 
-    private final Path diretorio;
+    private final FotoRepository fotoRepository;
 
-    public ArmazenamentoImagemService(@Value("${app.upload.dir}") String diretorio) {
-        this.diretorio = Path.of(diretorio).toAbsolutePath().normalize();
+    public ArmazenamentoImagemService(FotoRepository fotoRepository) {
+        this.fotoRepository = fotoRepository;
     }
 
     /** @return a URL pública da foto gravada */
+    @Transactional
     public String salvar(MultipartFile foto) {
         String arquivo = UUID.randomUUID() + identificarExtensao(foto);
         try {
-            Files.createDirectories(diretorio);
-            foto.transferTo(diretorio.resolve(arquivo));
+            fotoRepository.save(new Foto(arquivo, foto.getBytes()));
         } catch (IOException e) {
-            throw new UncheckedIOException("Não foi possível gravar a foto da vantagem.", e);
+            throw new UncheckedIOException("Não foi possível ler a foto da vantagem.", e);
         }
         return URL_BASE + arquivo;
     }
 
-    /** Um arquivo que sobra não afeta o sistema, por isso a falha na remoção é apenas registrada. */
+    /** As fotos de demonstração não estão no banco; para elas, a remoção não tem efeito. */
+    @Transactional
     public void remover(String fotoUrl) {
-        Path arquivo = diretorio.resolve(Path.of(fotoUrl).getFileName());
-        try {
-            Files.deleteIfExists(arquivo);
+        fotoRepository.removerPorArquivo(fotoUrl.substring(fotoUrl.lastIndexOf('/') + 1));
+    }
+
+    /** Procura a foto no banco e, se não estiver lá, entre as fotos de demonstração. */
+    @Transactional(readOnly = true)
+    public Optional<byte[]> buscar(String arquivo) {
+        if (!NOME_VALIDO.matcher(arquivo).matches()) {
+            return Optional.empty();
+        }
+        Optional<byte[]> doBanco = fotoRepository.findById(arquivo).map(Foto::getConteudo);
+        return doBanco.isPresent() ? doBanco : buscarFotoDemo(arquivo);
+    }
+
+    private static Optional<byte[]> buscarFotoDemo(String arquivo) {
+        ClassPathResource recurso = new ClassPathResource(PASTA_DEMO + arquivo);
+        if (!recurso.exists()) {
+            return Optional.empty();
+        }
+        try (InputStream conteudo = recurso.getInputStream()) {
+            return Optional.of(conteudo.readAllBytes());
         } catch (IOException e) {
-            log.warn("Não foi possível remover a foto {}", arquivo, e);
+            throw new UncheckedIOException("Não foi possível ler a foto " + arquivo, e);
         }
     }
 

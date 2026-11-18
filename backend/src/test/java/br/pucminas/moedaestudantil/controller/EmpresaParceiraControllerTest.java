@@ -3,10 +3,12 @@ package br.pucminas.moedaestudantil.controller;
 import br.pucminas.moedaestudantil.DadosDeTeste;
 import br.pucminas.moedaestudantil.model.Aluno;
 import br.pucminas.moedaestudantil.model.EmpresaParceira;
+import br.pucminas.moedaestudantil.model.Foto;
 import br.pucminas.moedaestudantil.model.ResgateVantagem;
 import br.pucminas.moedaestudantil.model.Vantagem;
 import br.pucminas.moedaestudantil.repository.AlunoRepository;
 import br.pucminas.moedaestudantil.repository.EmpresaParceiraRepository;
+import br.pucminas.moedaestudantil.repository.FotoRepository;
 import br.pucminas.moedaestudantil.repository.InstituicaoEnsinoRepository;
 import br.pucminas.moedaestudantil.repository.TransacaoRepository;
 import br.pucminas.moedaestudantil.repository.VantagemRepository;
@@ -57,6 +59,8 @@ class EmpresaParceiraControllerTest {
     @Autowired
     private VantagemRepository vantagemRepository;
     @Autowired
+    private FotoRepository fotoRepository;
+    @Autowired
     private JwtService jwtService;
 
     @Test
@@ -88,6 +92,27 @@ class EmpresaParceiraControllerTest {
         // a exclusão encerra o acesso: o token emitido antes dela deixa de valer
         mockMvc.perform(get("/api/empresas/{id}", id).with(empresa)).andExpect(status().isUnauthorized());
         assertThat(empresaParceiraRepository.existsById(id)).isFalse();
+    }
+
+    @Test
+    void excluirEmpresaSemResgatesRemoveAsFotosDasVantagens() throws Exception {
+        String resposta = mockMvc.perform(post("/api/empresas").contentType(MediaType.APPLICATION_JSON)
+                        .content(json("Cantina Central", "11222333000181", "contato@cantina.com", "segredo1")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long id = objectMapper.readTree(resposta).get("id").asLong();
+
+        EmpresaParceira empresa = empresaParceiraRepository.findById(id).orElseThrow();
+        fotoRepository.save(new Foto("almoco.png", DadosDeTeste.BYTES_PNG));
+        Vantagem vantagem = new Vantagem(empresa, "Almoço", "Almoço no restaurante universitário", "/api/fotos/almoco.png", 30);
+        empresa.getVantagens().add(vantagem);
+        vantagemRepository.save(vantagem);
+
+        mockMvc.perform(delete("/api/empresas/{id}", id).with(DadosDeTeste.autenticadoComo(empresa, jwtService)))
+                .andExpect(status().isNoContent());
+
+        assertThat(empresaParceiraRepository.findById(id)).isEmpty();
+        assertThat(fotoRepository.existsById("almoco.png")).isFalse();
     }
 
     @Test

@@ -52,7 +52,7 @@ public class VantagemService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Vantagem " + id + " não encontrada."));
     }
 
-    /** Sem uma nova foto, a foto atual é mantida. */
+    /** Sem uma nova foto, a foto atual é mantida. A troca da foto faz parte da mesma transação. */
     @Transactional
     public Vantagem atualizar(Long empresaId, Long id, Vantagem dados, MultipartFile foto) {
         Vantagem vantagem = buscarDaEmpresa(empresaId, id);
@@ -60,7 +60,7 @@ public class VantagemService {
         if (foto != null && !foto.isEmpty()) {
             String fotoAnterior = vantagem.getFotoUrl();
             vantagem.setFotoUrl(armazenamentoImagemService.salvar(foto));
-            AposCommit.executar(() -> armazenamentoImagemService.remover(fotoAnterior));
+            armazenamentoImagemService.remover(fotoAnterior);
         }
         return vantagem;
     }

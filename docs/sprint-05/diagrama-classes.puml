@@ -1,0 +1,181 @@
+@startuml diagrama-classes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S02 - Diagrama de Classes (v4) - Modelo de Domínio (camada model)
+' Alteração em relação à v3 (docs/sprint-03): entidade Foto, com a imagem da vantagem gravada no banco,
+' porque o disco do servidor na nuvem é apagado a cada reinício (docs/sprint-05/diagrama-implantacao.puml).
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "model" {
+  abstract class Usuario <<Entity>> {
+    - id: Long
+    - nome: String
+    - email: String
+    - senha: String
+    - ativo: boolean
+    + desativar(): void
+    + {abstract} getPerfil(): Perfil
+  }
+
+  enum Perfil {
+    ALUNO
+    PROFESSOR
+    EMPRESA
+  }
+
+  class Aluno <<Entity>> {
+    - cpf: String
+    - rg: String
+    - curso: String
+    + getPerfil(): Perfil
+  }
+
+  class Professor <<Entity>> {
+    - cpf: String
+    - departamento: String
+    + getPerfil(): Perfil
+  }
+
+  class EmpresaParceira <<Entity>> {
+    - cnpj: String
+    + getPerfil(): Perfil
+    + desativar(): void
+  }
+
+  class InstituicaoEnsino <<Entity>> {
+    - id: Long
+    - nome: String
+  }
+
+  class Endereco <<Embeddable>> {
+    - logradouro: String
+    - numero: String
+    - complemento: String
+    - bairro: String
+    - cidade: String
+    - estado: String
+    - cep: String
+  }
+
+  class Conta <<Entity>> {
+    - id: Long
+    - saldo: int
+    - versao: long
+    + creditar(valor: int): void
+    + debitar(valor: int): void
+    + possuiSaldo(valor: int): boolean
+  }
+
+  abstract class Transacao <<Entity>> {
+    - id: Long
+    - valor: int
+    - dataHora: LocalDateTime
+    + {abstract} getDescricao(): String
+  }
+
+  class CreditoSemestral <<Entity>> {
+    + {static} MOEDAS_POR_SEMESTRE: int = 1000
+    - semestre: String
+    + {static} semestreDe(data: LocalDate): String
+    + getDescricao(): String
+  }
+
+  class EnvioMoedas <<Entity>> {
+    - motivo: String
+    + getDescricao(): String
+  }
+
+  class ResgateVantagem <<Entity>> {
+    - codigoCupom: String
+    + getDescricao(): String
+  }
+
+  class Vantagem <<Entity>> {
+    - id: Long
+    - nome: String
+    - descricao: String
+    - fotoUrl: String
+    - custoMoedas: int
+    - ativa: boolean
+    + atualizar(nome: String, descricao: String, custoMoedas: int): void
+    + desativar(): void
+  }
+
+  class Foto <<Entity>> {
+    + {static} TAMANHO_MAXIMO: int = 5 MB
+    - arquivo: String
+    - conteudo: byte[]
+  }
+
+  class Extrato {
+    - transacoes: List<Transacao>
+    - titulares: Map<Long, String>
+    + getSaldoAtual(): int
+    + isEntrada(transacao: Transacao): boolean
+    + getTitular(outraConta: Conta): String
+  }
+}
+
+' ===== Usuários =====
+Usuario <|-- Aluno
+Usuario <|-- Professor
+Usuario <|-- EmpresaParceira
+Usuario ..> Perfil
+
+Aluno "*" --> "1" InstituicaoEnsino : estuda em >
+Professor "*" --> "1" InstituicaoEnsino : vinculado a >
+Aluno *-- "1" Endereco : reside em >
+
+' ===== Moedas =====
+Aluno "1" *-- "1" Conta : possui >
+Professor "1" *-- "1" Conta : possui >
+
+Transacao <|-- CreditoSemestral
+Transacao <|-- EnvioMoedas
+Transacao <|-- ResgateVantagem
+Transacao "*" -right-> "0..1" Conta : origem >
+Transacao "*" -down-> "0..1" Conta : destino >
+
+' ===== Vantagens =====
+EmpresaParceira "1" *-- "*" Vantagem : oferece >
+ResgateVantagem "*" --> "1" Vantagem : resgata >
+Vantagem "1" ..> "0..1" Foto : fotoUrl = /api/fotos/{arquivo} >
+
+' ===== Extrato (não persistido) =====
+Extrato --> "1" Conta : resume >
+Extrato o-- "*" Transacao
+
+note top of Usuario
+  Herança JPA **JOINED**: tabela usuario
+  + aluno / professor / empresa_parceira
+  (mesma PK). desativar() = exclusão lógica,
+  usada quando há transações no histórico.
+end note
+
+note right of Conta
+  **versao** (@Version): bloqueio otimista.
+  Duas operações simultâneas não
+  gastam o mesmo saldo (RN05, RN10).
+end note
+
+legend right
+  **Uso de origem/destino por tipo de Transacao**
+  CreditoSemestral: origem vazia; destino = conta do professor
+  EnvioMoedas: origem = conta do professor; destino = conta do aluno
+  ResgateVantagem: origem = conta do aluno; destino vazio
+
+  **Mapeamento JPA**
+  Transacao: herança SINGLE_TABLE (tabela transacao, discriminador "tipo").
+  Endereco: @Embeddable, colunas na tabela aluno.
+  Extrato: montado em memória pelo ExtratoService (não é entidade).
+  Foto: referenciada pela URL, sem associação JPA; as fotos do perfil demo
+  ficam dentro do JAR (fotos-demo) e não têm registro no banco.
+
+  **v4 (Lab04S02)**: entidade Foto (imagens no banco, e não mais em disco).
+endlegend
+
+@enduml

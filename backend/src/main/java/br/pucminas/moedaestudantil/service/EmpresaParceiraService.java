@@ -3,7 +3,6 @@ package br.pucminas.moedaestudantil.service;
 import br.pucminas.moedaestudantil.exception.RecursoNaoEncontradoException;
 import br.pucminas.moedaestudantil.exception.RegraNegocioException;
 import br.pucminas.moedaestudantil.model.EmpresaParceira;
-import br.pucminas.moedaestudantil.model.Vantagem;
 import br.pucminas.moedaestudantil.repository.EmpresaParceiraRepository;
 import br.pucminas.moedaestudantil.repository.TransacaoRepository;
 import br.pucminas.moedaestudantil.repository.UsuarioRepository;
@@ -67,7 +66,7 @@ public class EmpresaParceiraService {
     }
 
     /**
-     * Sem resgates, a empresa e suas vantagens são removidas do banco. Com resgates, a exclusão é lógica:
+     * Sem resgates, a empresa, suas vantagens e as fotos são removidas do banco. Com resgates, a exclusão é lógica:
      * as vantagens deixam de ser exibidas e o histórico de resgates é mantido nos extratos (US12).
      */
     @Transactional
@@ -76,9 +75,8 @@ public class EmpresaParceiraService {
         if (transacaoRepository.existsResgateByEmpresa(empresa)) {
             empresa.desativar();
         } else {
-            List<String> fotos = empresa.getVantagens().stream().map(Vantagem::getFotoUrl).toList();
+            empresa.getVantagens().forEach(vantagem -> armazenamentoImagemService.remover(vantagem.getFotoUrl()));
             empresaParceiraRepository.delete(empresa);
-            AposCommit.executar(() -> fotos.forEach(armazenamentoImagemService::remover));
         }
     }
 

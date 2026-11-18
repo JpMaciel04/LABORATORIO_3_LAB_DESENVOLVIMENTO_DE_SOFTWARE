@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import Alerta from '../components/Alerta.jsx';
 import Campo from '../components/Campo.jsx';
@@ -15,6 +15,18 @@ export default function Login() {
   const [erros, setErros] = useState({});
   const [mensagemErro, setMensagemErro] = useState('');
   const [entrando, setEntrando] = useState(false);
+  const [demorando, setDemorando] = useState(false);
+
+  // Na nuvem (plano gratuito do Render), a API é desligada após 15 minutos sem acesso e a primeira
+  // requisição a liga de novo, o que leva cerca de um minuto: o aviso evita que pareça um travamento.
+  useEffect(() => {
+    if (!entrando) return undefined;
+    const temporizador = setTimeout(() => setDemorando(true), 4000);
+    return () => {
+      clearTimeout(temporizador);
+      setDemorando(false);
+    };
+  }, [entrando]);
 
   if (usuario) return <Navigate to={location.state?.destino ?? '/'} replace />;
 
@@ -50,6 +62,9 @@ export default function Login() {
 
       <Alerta tipo="sucesso" aoFechar={() => setSucesso('')}>{sucesso || avisoDeSaida}</Alerta>
       <Alerta aoFechar={() => setMensagemErro('')}>{mensagemErro}</Alerta>
+      <Alerta tipo="info">
+        {demorando && 'O servidor estava em repouso e está sendo iniciado. Isso pode levar até um minuto.'}
+      </Alerta>
 
       <form className="formulario" onSubmit={enviar} noValidate>
         <fieldset>

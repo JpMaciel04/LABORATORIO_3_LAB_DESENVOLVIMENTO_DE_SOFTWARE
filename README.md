@@ -24,6 +24,7 @@ Integrantes: João Pedro Maciel de Oliveira
 13. [Estrutura do Repositório](#13-estrutura-do-repositório)
 14. [Andamento das Sprints](#14-andamento-das-sprints)
 15. [Diagramas de Sequência e Visão Geral de Interação](#15-diagramas-de-sequência-e-visão-geral-de-interação)
+16. [Diagrama de Implantação e Implantação na Nuvem](#16-diagrama-de-implantação-e-implantação-na-nuvem)
 
 ---
 
@@ -39,11 +40,12 @@ Sistema para estimular o reconhecimento do mérito estudantil por meio de uma **
 | **Controller** (back-end) | Java 21 + Spring Boot 3.5 — Spring Web (REST) + Bean Validation |
 | **Model** (back-end) | Services com as regras de negócio + entidades JPA |
 | **Persistência** | Spring Data JPA / Hibernate (ORM) com repositórios no padrão DAO; esquema versionado com Flyway |
-| **Banco de dados** | MySQL 8 (H2 em memória, modo MySQL, para testes e para rodar sem instalar o MySQL) |
+| **Banco de dados** | MySQL 8 no ambiente local e PostgreSQL 17 na nuvem (H2 em memória, modo MySQL, para testes e para rodar sem instalar o MySQL) |
 | **Autenticação** | Spring Security + JWT (biblioteca JJWT), senhas armazenadas com BCrypt |
 | **E-mail** | Spring Boot Mail (`JavaMailSender`) via SMTP |
-| **Testes** | JUnit 5, Spring Boot Test (MockMvc, `@DataJpaTest`), Mockito |
+| **Testes** | JUnit 5, Spring Boot Test (MockMvc, `@DataJpaTest`), Mockito e PostgreSQL embutido (Zonky) |
 | **Modelagem** | PlantUML |
+| **Implantação** | Vercel (front-end) e Render (API em contêiner Docker + PostgreSQL gerenciado), configurados em `frontend/vercel.json` e `render.yaml` |
 
 **Arquitetura:** MVC, com o back-end organizado nas camadas `controller` → `service` → `repository` → `model`.
 
@@ -346,13 +348,13 @@ Fonte PlantUML: [`docs/sprint-03/casos-de-uso.puml`](docs/sprint-03/casos-de-uso
 
 ## 6. Diagrama de Classes
 
-O modelo de classes está dividido em visões, para manter a legibilidade. As imagens abaixo são a **versão atual (v3, Sprint 3)**, alinhada ao código; as versões anteriores continuam em [`docs/sprint-01/`](docs/sprint-01/) e [`docs/sprint-02/`](docs/sprint-02/).
+O modelo de classes está dividido em visões, para manter a legibilidade. As imagens abaixo são a **versão atual de cada visão**, alinhada ao código: domínio e camadas na v4 (Lab04S02), DTOs na v2 (Sprint 3). As versões anteriores continuam em [`docs/sprint-01/`](docs/sprint-01/), [`docs/sprint-02/`](docs/sprint-02/) e [`docs/sprint-03/`](docs/sprint-03/).
 
 ### 6.1 Modelo de Domínio (`model`)
 
-Fonte PlantUML: [`docs/sprint-03/diagrama-classes.puml`](docs/sprint-03/diagrama-classes.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-classes.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-classes.puml)
+Fonte PlantUML: [`docs/sprint-05/diagrama-classes.puml`](docs/sprint-05/diagrama-classes.puml) · v3: [`sprint-03`](docs/sprint-03/diagrama-classes.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-classes.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-classes.puml)
 
-![Diagrama de Classes — Modelo de Domínio](docs/sprint-03/diagrama-classes.png)
+![Diagrama de Classes — Modelo de Domínio](docs/sprint-05/diagrama-classes.png)
 
 | Classe | Responsabilidade |
 |---|---|
@@ -369,13 +371,14 @@ Fonte PlantUML: [`docs/sprint-03/diagrama-classes.puml`](docs/sprint-03/diagrama
 | **EnvioMoedas** | Moedas do professor para o aluno, com `motivo` obrigatório (RN05). |
 | **ResgateVantagem** | Troca de moedas do aluno por uma `Vantagem`, com `codigoCupom` único (RN10, RN11). |
 | **Vantagem** | Nome, descrição, foto, custo em moedas e situação ativa/inativa (RN09). |
+| **Foto** | Imagem de uma vantagem (`arquivo` e `conteudo`), gravada no banco porque o disco do servidor na nuvem é apagado a cada reinício. A vantagem a referencia pela URL `/api/fotos/{arquivo}`. |
 | **Extrato** | Objeto não persistido que reúne saldo, transações e o nome do dono de cada conta envolvida (RN08). |
 
 ### 6.2 Camadas MVC (`controller` / `security` / `service` / `repository`)
 
-Fonte PlantUML: [`docs/sprint-03/diagrama-classes-camadas.puml`](docs/sprint-03/diagrama-classes-camadas.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-classes-camadas.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-classes-camadas.puml)
+Fonte PlantUML: [`docs/sprint-05/diagrama-classes-camadas.puml`](docs/sprint-05/diagrama-classes-camadas.puml) · v3: [`sprint-03`](docs/sprint-03/diagrama-classes-camadas.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-classes-camadas.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-classes-camadas.puml)
 
-![Diagrama de Classes — Camadas MVC](docs/sprint-03/diagrama-classes-camadas.png)
+![Diagrama de Classes — Camadas MVC](docs/sprint-05/diagrama-classes-camadas.png)
 
 | Camada | Pacote | Responsabilidade |
 |---|---|---|
@@ -386,7 +389,7 @@ Fonte PlantUML: [`docs/sprint-03/diagrama-classes-camadas.puml`](docs/sprint-03/
 | **Service** | `service` | Regras de negócio (RN01–RN12), transações, notificações, agendamento e armazenamento das fotos. |
 | **Repository (DAO)** | `repository` | Interfaces Spring Data JPA de acesso ao banco, uma por agregado. |
 | **Model** | `model` | Entidades JPA e objetos de domínio da seção 6.1. |
-| **Configuração** | `config` | Regras de acesso (`SegurancaConfig`), `PasswordEncoder` (BCrypt), CORS, agendamento e publicação das fotos. |
+| **Configuração** | `config` | Regras de acesso (`SegurancaConfig`), `PasswordEncoder` (BCrypt), CORS (aceita padrões de origem, como os endereços da Vercel) e agendamento. |
 
 ### 6.3 DTOs e Tratamento de Erros
 
@@ -402,7 +405,7 @@ Fonte PlantUML: [`docs/sprint-03/diagrama-classes-dto.puml`](docs/sprint-03/diag
 | **AlunoService** | CRUD de aluno, com validação de CPF e e-mail únicos (UC02; RN01, RN02) e lista de alunos para o professor (UC13; RN06). | `AlunoRepository`, `UsuarioRepository`, `InstituicaoEnsinoRepository`, `ProfessorRepository`, `TransacaoRepository` |
 | **EmpresaParceiraService** | CRUD de empresa parceira, com validação de CNPJ e e-mail únicos (UC04, UC14). | `EmpresaParceiraRepository`, `UsuarioRepository`, `TransacaoRepository` |
 | **VantagemService** | Manutenção e consulta de vantagens (UC05, UC08). | `VantagemRepository`, `EmpresaParceiraRepository` |
-| **ArmazenamentoImagemService** | Grava e remove as fotos em disco, conferindo se o conteúdo é JPG ou PNG (RN09, US13). | — |
+| **ArmazenamentoImagemService** | Grava, busca e remove as fotos no banco, dentro da transação de quem chama, conferindo se o conteúdo é JPG ou PNG (RN09, US13). As fotos do perfil demo vêm de dentro do JAR. | `FotoRepository` |
 | **InstituicaoEnsinoService** | Lista as instituições pré-cadastradas (UC03). | `InstituicaoEnsinoRepository` |
 | **MoedaService** | Envio de moedas (UC06; RN05–RN07) e crédito semestral (UC11; RN04). | `ProfessorRepository`, `AlunoRepository`, `TransacaoRepository` |
 | **ResgateService** | Resgate de vantagem e geração do código do cupom (UC09, UC12; RN10–RN11). | `AlunoRepository`, `VantagemRepository`, `TransacaoRepository` |
@@ -420,9 +423,9 @@ Exemplo de uma operação atravessando todas as camadas, da tela ao banco. Os di
 
 ## 7. Diagrama de Componentes
 
-Fonte PlantUML: [`docs/sprint-03/diagrama-componentes.puml`](docs/sprint-03/diagrama-componentes.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-componentes.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-componentes.puml)
+Fonte PlantUML: [`docs/sprint-05/diagrama-componentes.puml`](docs/sprint-05/diagrama-componentes.puml) · v3: [`sprint-03`](docs/sprint-03/diagrama-componentes.puml) · v2: [`sprint-02`](docs/sprint-02/diagrama-componentes.puml) · v1: [`sprint-01`](docs/sprint-01/diagrama-componentes.puml)
 
-![Diagrama de Componentes](docs/sprint-03/diagrama-componentes.png)
+![Diagrama de Componentes](docs/sprint-05/diagrama-componentes.png)
 
 | Componente | Papel no MVC | Descrição |
 |---|---|---|
@@ -436,22 +439,24 @@ Fonte PlantUML: [`docs/sprint-03/diagrama-componentes.puml`](docs/sprint-03/diag
 | **Controllers REST** | Controller | Expõem a API REST/JSON e delegam aos services. |
 | **Services** | Model | Regras de negócio; dependem das interfaces `JpaRepository` e `NotificacaoService`, não das implementações. |
 | **Tratamento de erros** | Controller | `@RestControllerAdvice` que devolve os erros em JSON, com mensagem por campo. |
-| **Repositories (DAO)** | Model | Acesso ao MySQL via Spring Data JPA/Hibernate. |
+| **Repositories (DAO)** | Model | Acesso ao banco (MySQL ou PostgreSQL) via Spring Data JPA/Hibernate. |
 | **Entidades** | Model | Classes do modelo de domínio mapeadas com JPA. |
-| **Migrações (Flyway)** | — | Scripts SQL versionados que criam o esquema e a carga inicial. |
+| **Migrações (Flyway)** | — | Scripts SQL versionados que criam o esquema e a carga inicial: `db/migration` (MySQL e H2) ou `db/postgresql` (nuvem). |
 | **Notificação por E-mail** | Model | Implementa `NotificacaoService` e envia e-mails pelo servidor SMTP, depois do commit e em segundo plano. |
 | **Agendador de Crédito Semestral** | Model | Executa o crédito de 1.000 moedas por semestre (RN04). |
-| **Armazenamento de Imagens** | Model | Guarda as fotos das vantagens em disco; a entidade guarda apenas a URL. |
-| **MySQL 8** | — | Banco de dados relacional da aplicação. |
+| **Armazenamento de Imagens** | Model | Guarda as fotos das vantagens no banco (tabela `foto`), pelo `FotoRepository`; a vantagem guarda apenas a URL. |
+| **MySQL 8 / PostgreSQL 17** | — | Banco de dados relacional: MySQL 8 no ambiente local e PostgreSQL 17 na nuvem (Render). |
 | **Servidor SMTP** | — | Serviço externo de entrega de e-mails. |
+
+> Onde cada componente é executado está no [Diagrama de Implantação](#16-diagrama-de-implantação-e-implantação-na-nuvem).
 
 ---
 
 ## 8. Modelo ER
 
-Fonte PlantUML: [`docs/sprint-03/modelo-er.puml`](docs/sprint-03/modelo-er.puml) · v1: [`sprint-02`](docs/sprint-02/modelo-er.puml) · Implementação: [`V1__criar_tabelas.sql`](backend/src/main/resources/db/migration/V1__criar_tabelas.sql) e [`V3__bloqueio_otimista_conta.sql`](backend/src/main/resources/db/migration/V3__bloqueio_otimista_conta.sql)
+Fonte PlantUML: [`docs/sprint-05/modelo-er.puml`](docs/sprint-05/modelo-er.puml) · v2: [`sprint-03`](docs/sprint-03/modelo-er.puml) · v1: [`sprint-02`](docs/sprint-02/modelo-er.puml) · Implementação: [`V1__criar_tabelas.sql`](backend/src/main/resources/db/migration/V1__criar_tabelas.sql), [`V3__bloqueio_otimista_conta.sql`](backend/src/main/resources/db/migration/V3__bloqueio_otimista_conta.sql) e [`V4__criar_tabela_foto.sql`](backend/src/main/resources/db/migration/V4__criar_tabela_foto.sql), com a versão PostgreSQL em [`db/postgresql`](backend/src/main/resources/db/postgresql)
 
-![Modelo ER](docs/sprint-03/modelo-er.png)
+![Modelo ER](docs/sprint-05/modelo-er.png)
 
 | Tabela | Origem no modelo de classes | Observações |
 |---|---|---|
@@ -462,6 +467,7 @@ Fonte PlantUML: [`docs/sprint-03/modelo-er.puml`](docs/sprint-03/modelo-er.puml)
 | `conta` | `Conta` | Saldo de aluno ou professor. Referenciada por `aluno.conta_id` / `professor.conta_id` (únicos). `versao` sustenta o bloqueio otimista. |
 | `vantagem` | `Vantagem` | Pertence a uma empresa parceira. |
 | `transacao` | `Transacao` e subclasses | Uma tabela para os três tipos; `tipo` é o discriminador. |
+| `foto` | `Foto` | Imagens das vantagens: `MEDIUMBLOB` no MySQL, `BYTEA` no PostgreSQL. Sem chave estrangeira: a vantagem guarda a URL `/api/fotos/{arquivo}`, e as fotos do perfil demo ficam dentro do JAR. |
 
 **Regras garantidas pelo próprio banco** (além das validações da aplicação):
 
@@ -487,6 +493,8 @@ Controller ──► Service ──► Repository (DAO, interface) ──► Hib
                                                             cria e versiona o esquema
 ```
 
+Na nuvem, o mesmo caminho termina em um **PostgreSQL 17** ([seção 16](#16-diagrama-de-implantação-e-implantação-na-nuvem)). As camadas não mudam: só a configuração (perfil `nuvem`) e o dialeto das migrações.
+
 ### 9.1 ORM — JPA / Hibernate
 
 As entidades do pacote `model` são mapeadas com anotações JPA, e o Hibernate gera o SQL de inserção, consulta, alteração e exclusão.
@@ -497,7 +505,8 @@ As entidades do pacote `model` são mapeadas com anotações JPA, e o Hibernate 
 | `Transacao` → herança **`SINGLE_TABLE`** (tabela `transacao`) | O extrato (RN08) lê todos os tipos juntos, ordenados por data, em uma única consulta sem junções. As colunas específicas são poucas e protegidas pelo `CHECK` por tipo. |
 | `Endereco` → `@Embeddable` | Objeto de valor sem identidade própria; fica na tabela `aluno`. |
 | `Conta` → `@OneToOne(cascade = ALL)` | A conta nasce e é removida junto com o aluno/professor. |
-| Chaves → `GenerationType.IDENTITY` | Usa o `AUTO_INCREMENT` do MySQL. |
+| Chaves → `GenerationType.IDENTITY` | Usa o `AUTO_INCREMENT` do MySQL e a coluna `GENERATED BY DEFAULT AS IDENTITY` do PostgreSQL. |
+| `Foto.conteudo` → `byte[]` sem `@Lob` | O Hibernate valida `MEDIUMBLOB` no MySQL e `BYTEA` no PostgreSQL. Com `@Lob`, o PostgreSQL usaria *large objects* (`oid`), que ficam órfãos quando a linha é apagada. |
 | Listagens com `@EntityGraph` | Instituição e conta vêm na mesma consulta (JOIN), evitando o problema N+1. |
 | `default_batch_fetch_size=50` | Nas demais associações, o Hibernate agrupa as consultas em lotes (`IN (...)`), em vez de uma por registro. |
 | Projeção `TitularConta` | O extrato busca apenas o nome do dono de cada conta, de uma só vez, sem carregar as entidades completas. |
@@ -517,7 +526,11 @@ O esquema não é gerado pelo Hibernate: ele é criado por scripts SQL versionad
 | `V1__criar_tabelas.sql` | Todas as tabelas, chaves e restrições do modelo ER. |
 | `V2__carga_inicial.sql` | Instituições participantes e professores pré-cadastrados (RN02, RN03). |
 | `V3__bloqueio_otimista_conta.sql` | Coluna `conta.versao`, usada no bloqueio otimista do saldo. |
-| `db/demo/R__dados_demonstracao.sql` | Alunos, empresas e vantagens da apresentação. Migração repetível, carregada apenas no perfil `demo`. |
+| `V4__criar_tabela_foto.sql` | Tabela `foto`, com as imagens das vantagens (Lab04S02). |
+| `db/postgresql/V1__` a `V4__` | As mesmas migrações no dialeto do PostgreSQL, usadas na nuvem (perfil `nuvem`). |
+| `db/demo/R__dados_demonstracao.sql` | Alunos, empresas e vantagens da apresentação. Migração repetível, carregada apenas no perfil `demo`; o SQL é o mesmo nos dois bancos. |
+
+**Duas pastas, um esquema.** O MySQL e o PostgreSQL divergem em dois pontos de sintaxe (`AUTO_INCREMENT` × `GENERATED BY DEFAULT AS IDENTITY` e `DATETIME(6)` × `TIMESTAMP(6)`), por isso o perfil `nuvem` aponta o Flyway para `db/postgresql` (propriedade `app.flyway.esquema`, que o perfil `demo` também usa). Toda migração nova precisa existir nas duas pastas, com o mesmo número. O teste `PerfilNuvemPostgresTest` sobe um PostgreSQL 17 real e falha se a versão PostgreSQL se afastar das entidades.
 
 Com `spring.jpa.hibernate.ddl-auto=validate`, o Hibernate **confere na inicialização se as entidades batem com as tabelas** e impede a aplicação de subir se houver divergência — o que mantém o modelo de classes, o modelo ER e o código alinhados.
 
@@ -528,7 +541,8 @@ Com `spring.jpa.hibernate.ddl-auto=validate`, o Hibernate **confere na inicializ
 - **Exclusão**: se o aluno ou a empresa não tiver movimentações, o registro é removido do banco (e pode se cadastrar de novo). Se tiver, a exclusão é **lógica** (`ativo = false`): o acesso é encerrado, mas as transações continuam nos extratos (RN08, US12); no caso da empresa, as vantagens também são desativadas.
 - Senhas são gravadas apenas como hash **BCrypt** e nunca são devolvidas pela API.
 - **Concorrência no saldo**: sem proteção, dois envios simultâneos leem o mesmo saldo e ambos passam. Em teste com a anotação removida, 4 envios simultâneos de 1.000 moedas foram aceitos sobre um saldo de 1.000. Com `@Version`, apenas um é aceito; os demais recebem HTTP 409 (bloqueio otimista ou *deadlock* detectado pelo MySQL) ou 422 (saldo insuficiente), e o usuário pode tentar de novo.
-- **Efeitos fora do banco depois do commit**: e-mails e remoção de arquivos são agendados com `TransactionSynchronization.afterCommit`. Se a transação for desfeita, nenhum e-mail é enviado; se o e-mail falhar, a transação já está confirmada e a falha é registrada em log (US04).
+- **Efeitos fora do banco depois do commit**: os e-mails são agendados com `TransactionSynchronization.afterCommit`. Se a transação for desfeita, nenhum e-mail é enviado; se o e-mail falhar, a transação já está confirmada e a falha é registrada em log (US04).
+- **Fotos na mesma transação**: por estarem no banco, as fotos são gravadas e removidas junto com a vantagem. Se o cadastro falhar, a foto não fica gravada; a foto substituída só é apagada se a alteração for confirmada.
 
 ---
 
@@ -543,6 +557,7 @@ Com `spring.jpa.hibernate.ddl-auto=validate`, o Hibernate **confere na inicializ
 | **Cliente-servidor com API REST** | Front-end ↔ back-end | Recursos no plural (`/api/alunos`, `/api/empresas`), verbos HTTP (`GET`, `POST`, `PUT`, `DELETE`), JSON e códigos de status com significado (201, 204, 400, 401, 403, 404, 409, 413, 422). A API não guarda estado de sessão: cada requisição leva o token JWT. |
 | **Front Controller** | Spring MVC | O `DispatcherServlet` recebe todas as requisições e as encaminha ao controller e ao método corretos. |
 | **Cadeia de filtros (Intercepting Filter)** | Spring Security | Toda requisição passa por `JwtAutenticacaoFilter` e pelas regras de `SegurancaConfig` antes de chegar a um controller. |
+| **Configuração por ambiente (perfis)** | `application-*.properties`, `render.yaml` | O mesmo JAR roda no computador (MySQL), nos testes (H2 e PostgreSQL embutido) e na nuvem (perfil `nuvem`, PostgreSQL). Endereços, senhas e segredos vêm de variáveis de ambiente, nunca do código. |
 
 ### 10.2 Padrões de persistência
 
@@ -601,7 +616,7 @@ Com `spring.jpa.hibernate.ddl-auto=validate`, o Hibernate **confere na inicializ
 
 ## 11. API REST
 
-Base: `http://localhost:8080/api`. Corpo das requisições e respostas em JSON, exceto nas vantagens, que usam `multipart/form-data` por causa da foto. Rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`, obtido no login.
+Base: `http://localhost:8080/api` no ambiente local; na nuvem, o endereço do Render ([seção 16.4](#164-endereços)). Corpo das requisições e respostas em JSON, exceto nas vantagens, que usam `multipart/form-data` por causa da foto. Rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`, obtido no login.
 
 | Método | Rota | Quem acessa | Descrição | Respostas |
 |---|---|---|---|---|
@@ -697,7 +712,7 @@ cd backend
 
 A API sobe em `http://localhost:8080/api`. No perfil `h2`, o console do banco fica em `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:moeda_estudantil`, usuário `sa`, sem senha).
 
-Testes automatizados (persistência, API, segurança, concorrência e e-mail, executados sobre o H2):
+Testes automatizados (persistência, API, segurança, concorrência e e-mail, executados sobre o H2, mais o perfil da nuvem sobre um PostgreSQL 17 embutido, que o Maven baixa na primeira execução):
 
 ```powershell
 cd backend
@@ -707,12 +722,13 @@ cd backend
 | Variável de ambiente | Padrão | Uso |
 |---|---|---|
 | `DB_URL` | `jdbc:mysql://localhost:3306/moeda_estudantil?createDatabaseIfNotExist=true&serverTimezone=America/Sao_Paulo` | URL JDBC do MySQL |
-| `DB_USERNAME` / `DB_PASSWORD` | `root` / `root` | Credenciais do MySQL |
+| `DB_USERNAME` / `DB_PASSWORD` | `root` / `root` | Credenciais do MySQL (ou do PostgreSQL, no perfil `nuvem`) |
+| `SPRING_PROFILES_ACTIVE` | *(nenhum)* | Perfis: `h2`, `demo` e `nuvem` (PostgreSQL, usado no Render) |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `5432`, `moeda_estudantil` | Perfil `nuvem`: endereço do PostgreSQL, preenchido pelo `render.yaml` |
 | `PORT` | `8080` | Porta da API |
-| `CORS_ORIGINS` | `http://localhost:5173` | Origens autorizadas a chamar a API |
+| `CORS_ORIGINS` | `http://localhost:5173` | Origens autorizadas a chamar a API, separadas por vírgula; aceita padrões como `https://*.vercel.app` |
 | `JWT_SECRET` | *(chave aleatória a cada inicialização)* | Segredo de assinatura dos tokens, com ao menos 32 caracteres. Sem ele, os logins são perdidos ao reiniciar a API. |
 | `JWT_EXPIRACAO_MINUTOS` | `120` | Validade do token |
-| `UPLOAD_DIR` | `uploads` | Diretório das fotos das vantagens |
 | `CREDITO_SEMESTRAL_CRON` | `0 5 0 * * *` | Horário da verificação diária do crédito semestral |
 | `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` | *(sem SMTP)* | Servidor de e-mail. Sem `SPRING_MAIL_HOST`, os e-mails são escritos no log da API. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` | Autenticação e TLS do SMTP |
@@ -766,8 +782,10 @@ Os professores recebem as 1.000 moedas do semestre logo que a API inicia.
 ```
 .
 ├── README.md
+├── render.yaml                               # Blueprint do Render: API (Docker) + PostgreSQL (Lab04S02)
 ├── backend/                                  # API REST — Spring Boot (Controller + Model)
 │   ├── pom.xml, mvnw, mvnw.cmd
+│   ├── Dockerfile, .dockerignore             # imagem da API publicada no Render
 │   └── src/
 │       ├── main/java/br/pucminas/moedaestudantil/
 │       │   ├── controller/                   # Autenticação, Aluno, EmpresaParceira, InstituicaoEnsino, Vantagem, Transacao
@@ -782,11 +800,14 @@ Os professores recebem as 1.000 moedas do semestre logo que a API inicia.
 │       │   ├── application.properties        # MySQL (padrão)
 │       │   ├── application-h2.properties     # perfil h2
 │       │   ├── application-demo.properties   # perfil demo
-│       │   ├── db/migration/                 # V1 (esquema), V2 (carga inicial) e V3 (bloqueio otimista) — Flyway
+│       │   ├── application-nuvem.properties  # perfil nuvem (PostgreSQL no Render)
+│       │   ├── db/migration/                 # V1 (esquema), V2 (carga inicial), V3 (bloqueio otimista) e V4 (fotos) — Flyway, MySQL e H2
+│       │   ├── db/postgresql/                # as mesmas migrações no dialeto do PostgreSQL (nuvem)
 │       │   ├── db/demo/                      # dados da apresentação (perfil demo)
 │       │   └── fotos-demo/                   # fotos das vantagens da apresentação
-│       └── test/                             # testes de persistência, API, segurança, concorrência e e-mail
+│       └── test/                             # testes de persistência, API, segurança, concorrência, e-mail e perfil nuvem
 ├── frontend/                                 # View — React + Vite
+│   ├── vercel.json                           # configuração da Vercel (rotas da SPA)
 │   └── src/
 │       ├── pages/                            # Início, Login, alunos/, empresas/, vantagens/, moedas/, extrato/
 │       ├── components/                       # Layout, Campo, Alerta, RotaProtegida
@@ -814,17 +835,24 @@ Os professores recebem as 1.000 moedas do semestre logo que a API inicia.
     │   ├── diagrama-componentes.puml / .png / .pdf        # componentes (v3)
     │   ├── diagrama-sequencia-resgate.puml / .png / .pdf  # sequência de uma requisição (v1)
     │   └── telas/                                         # capturas do protótipo em execução
-    └── sprint-04/                            # Lab04S01: modelos de interação
-        ├── diagrama-visao-geral-interacao.puml / .png / .pdf    # visão geral de interação
-        ├── diagrama-sequencia-autenticar-requisicao.puml / ...  # interação compartilhada (ref)
-        ├── diagrama-sequencia-uc01-realizar-login.puml / ...    # um diagrama por caso de uso (UC01 a UC14)
-        └── estilo-sequencia.iuml                                # estilo comum aos diagramas de sequência
+    ├── sprint-04/                            # Lab04S01: modelos de interação
+    │   ├── diagrama-visao-geral-interacao.puml / .png / .pdf    # visão geral de interação
+    │   ├── diagrama-sequencia-autenticar-requisicao.puml / ...  # interação compartilhada (ref)
+    │   ├── diagrama-sequencia-uc01-realizar-login.puml / ...    # um diagrama por caso de uso (UC01 a UC14)
+    │   └── estilo-sequencia.iuml                                # estilo comum aos diagramas de sequência
+    └── sprint-05/                            # Lab04S02: implantação e modelos atualizados
+        ├── diagrama-implantacao.puml / .png / .pdf              # implantação na nuvem (v1)
+        ├── modelo-er.puml / .png / .pdf                         # modelo ER (v3): tabela foto
+        ├── diagrama-classes.puml / .png / .pdf                  # domínio (v4): Foto
+        ├── diagrama-classes-camadas.puml / .png / .pdf          # camadas (v4): FotoController e FotoRepository
+        ├── diagrama-componentes.puml / .png / .pdf              # componentes (v4)
+        └── diagrama-sequencia-uc04/uc05/uc08-*.puml / ...       # sequência (v2): fotos no banco
 ```
 
 Cada sprint tem sua própria pasta em `docs/`, preservando todas as versões dos modelos UML, conforme exigido no enunciado. Cada diagrama tem a fonte PlantUML (`.puml`), a imagem (`.png`) e uma versão em PDF vetorial (`.pdf`). Para regerar as imagens a partir das fontes:
 
 ```
-java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/sprint-03/*.puml docs/sprint-04/*.puml
+java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/sprint-03/*.puml docs/sprint-04/*.puml docs/sprint-05/*.puml
 ```
 
 > Os PDFs foram gerados a partir da exportação SVG do PlantUML (`-tsvg`) e impressos via navegador, pois a exportação `-tpdf` exige bibliotecas adicionais (Apache Batik/FOP).
@@ -839,6 +867,17 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 | **Lab03S02** | Modelo ER, estratégia de acesso ao banco (ORM/DAO), CRUDs de aluno e empresa parceira (versão inicial: front-end e comunicação com back-end) | ✅ Entregue |
 | **Lab03S03** | CRUDs de aluno e empresa parceira (versão final), apresentação da arquitetura e da camada de persistência (slides) | ✅ Entregue |
 | **Lab04S01** | Diagramas de Sequência, Diagrama de Visão Geral de Interação e implementação dos casos de uso restantes | ✅ Entregue |
+| **Lab04S02** | Diagrama de Implantação e implantação na nuvem (Vercel e Render) | 🟡 Diagrama e configuração prontos; falta publicar ([passo a passo](#163-passo-a-passo-da-publicação)) |
+
+### Entregas da Lab04S02
+
+- **Diagrama de Implantação** (UML 2): navegador, Vercel, Render (balanceador, contêiner Docker com a JVM e PostgreSQL), GitHub e servidor SMTP ([seção 16](#16-diagrama-de-implantação-e-implantação-na-nuvem)).
+- **Configuração da implantação**: [`render.yaml`](render.yaml) (Blueprint com a API e o banco), [`backend/Dockerfile`](backend/Dockerfile), perfil [`nuvem`](backend/src/main/resources/application-nuvem.properties) e [`frontend/vercel.json`](frontend/vercel.json).
+- **Mudanças para o sistema funcionar na nuvem** ([seção 16.2](#162-adaptações-para-a-nuvem)): suporte ao PostgreSQL, fotos no banco em vez do disco, CORS para a Vercel, proxy HTTPS, fuso horário, limites de memória e aviso de inicialização no login.
+- **Modelos atualizados** em [`docs/sprint-05`](docs/sprint-05/): modelo ER (v3), classes de domínio e de camadas (v4), componentes (v4) e sequência de UC04, UC05 e UC08 (v2).
+- **Testes automatizados**: 91 (eram 83), incluindo o perfil `nuvem` sobre um PostgreSQL 17 real.
+
+> Fotos enviadas antes desta versão, gravadas na antiga pasta `backend/uploads`, não são migradas para o banco: basta reenviá-las pela tela "Minhas vantagens". As fotos do perfil `demo` não são afetadas.
 
 ### Entregas da Lab04S01
 
@@ -907,23 +946,24 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 
 ### Histórico de versões dos modelos
 
-| Modelo | Sprint 1 | Sprint 2 | Sprint 3 | Mudanças mais recentes |
-|---|---|---|---|---|
-| Casos de Uso | [v1](docs/sprint-01/casos-de-uso.puml) | — | [v2](docs/sprint-03/casos-de-uso.puml) | UC13 (Consultar Alunos da Instituição) e UC14 (Consultar Empresas Parceiras). |
-| Classes — domínio | [v1](docs/sprint-01/diagrama-classes.puml) | [v2](docs/sprint-02/diagrama-classes.puml) | [v3](docs/sprint-03/diagrama-classes.puml) | `Perfil` e `getPerfil()`; `Conta.versao`; `Extrato` com os titulares das contas; `Vantagem.atualizar()`; `CreditoSemestral.semestreDe()`. |
-| Classes — camadas | [v1](docs/sprint-01/diagrama-classes-camadas.puml) | [v2](docs/sprint-02/diagrama-classes-camadas.puml) | [v3](docs/sprint-03/diagrama-classes-camadas.puml) | Classes `<<planejado>>` implementadas; pacote `security`; `ArmazenamentoImagemService`. `NotificacaoService` passou a receber professor e aluno, pois a transação guarda apenas as contas. `autenticar` devolve uma `Sessao` (token e usuário), usada pelo front-end. |
-| Classes — DTOs | — | [v1](docs/sprint-02/diagrama-classes-dto.puml) | [v2](docs/sprint-03/diagrama-classes-dto.puml) | DTOs de login, vantagens, transações e extrato; respostas 401, 403, 409 e 413. |
-| Componentes | [v1](docs/sprint-01/diagrama-componentes.puml) | [v2](docs/sprint-02/diagrama-componentes.puml) | [v3](docs/sprint-03/diagrama-componentes.puml) | Componentes planejados implementados; rotas protegidas e contexto de autenticação no front-end; diretório de fotos em disco. |
-| Modelo ER | — | [v1](docs/sprint-02/modelo-er.puml) | [v2](docs/sprint-03/modelo-er.puml) | Coluna `conta.versao`. |
-| Sequência (Resgatar Vantagem) | — | — | [v1](docs/sprint-03/diagrama-sequencia-resgate.puml) | [v2 na Lab04S01](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml): o `COMMIT` passa a ocorrer antes do retorno ao controller, os e-mails são detalhados no UC10 e cada repositório e entidade tem a sua linha de vida. |
-| Sequência (demais casos de uso) | — | — | — | Novos na Lab04S01: [`docs/sprint-04`](docs/sprint-04/). |
-| Visão Geral de Interação | — | — | — | Novo na Lab04S01: [v1](docs/sprint-04/diagrama-visao-geral-interacao.puml). |
+| Modelo | Sprint 1 | Sprint 2 | Sprint 3 | Release 02 | Mudanças mais recentes |
+|---|---|---|---|---|---|
+| Casos de Uso | [v1](docs/sprint-01/casos-de-uso.puml) | — | [v2](docs/sprint-03/casos-de-uso.puml) | — | UC13 (Consultar Alunos da Instituição) e UC14 (Consultar Empresas Parceiras). |
+| Classes — domínio | [v1](docs/sprint-01/diagrama-classes.puml) | [v2](docs/sprint-02/diagrama-classes.puml) | [v3](docs/sprint-03/diagrama-classes.puml) | [v4 (Lab04S02)](docs/sprint-05/diagrama-classes.puml) | Entidade `Foto`: as imagens das vantagens passam do disco para o banco. |
+| Classes — camadas | [v1](docs/sprint-01/diagrama-classes-camadas.puml) | [v2](docs/sprint-02/diagrama-classes-camadas.puml) | [v3](docs/sprint-03/diagrama-classes-camadas.puml) | [v4 (Lab04S02)](docs/sprint-05/diagrama-classes-camadas.puml) | `FotoController` e `FotoRepository`; `ArmazenamentoImagemService.buscar()`; `FotosConfig` removido. |
+| Classes — DTOs | — | [v1](docs/sprint-02/diagrama-classes-dto.puml) | [v2](docs/sprint-03/diagrama-classes-dto.puml) | — | DTOs de login, vantagens, transações e extrato; respostas 401, 403, 409 e 413. |
+| Componentes | [v1](docs/sprint-01/diagrama-componentes.puml) | [v2](docs/sprint-02/diagrama-componentes.puml) | [v3](docs/sprint-03/diagrama-componentes.puml) | [v4 (Lab04S02)](docs/sprint-05/diagrama-componentes.puml) | Armazenamento de imagens no banco, pelo `JpaRepository`; MySQL local ou PostgreSQL na nuvem. |
+| Modelo ER | — | [v1](docs/sprint-02/modelo-er.puml) | [v2](docs/sprint-03/modelo-er.puml) | [v3 (Lab04S02)](docs/sprint-05/modelo-er.puml) | Tabela `foto`. |
+| Sequência (Resgatar Vantagem) | — | — | [v1](docs/sprint-03/diagrama-sequencia-resgate.puml) | [v2 (Lab04S01)](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml) | O `COMMIT` passa a ocorrer antes do retorno ao controller, os e-mails são detalhados no UC10 e cada repositório e entidade tem a sua linha de vida. |
+| Sequência (demais casos de uso) | — | — | — | [v1 (Lab04S01)](docs/sprint-04/) · [v2 de UC04, UC05 e UC08 (Lab04S02)](docs/sprint-05/) | As fotos são gravadas, lidas e removidas pelo `FotoRepository`, na mesma transação da vantagem. |
+| Visão Geral de Interação | — | — | — | [v1 (Lab04S01)](docs/sprint-04/diagrama-visao-geral-interacao.puml) | Novo na Lab04S01. |
+| Implantação | — | — | — | [v1 (Lab04S02)](docs/sprint-05/diagrama-implantacao.puml) | Novo na Lab04S02: Vercel, Render (contêiner Docker) e PostgreSQL. |
 
 ---
 
 ## 15. Diagramas de Sequência e Visão Geral de Interação
 
-Modelos da Lab04S01, em [`docs/sprint-04`](docs/sprint-04/). Cada diagrama tem a fonte PlantUML (`.puml`), a imagem (`.png`) e o PDF vetorial (`.pdf`).
+Modelos da Lab04S01, em [`docs/sprint-04`](docs/sprint-04/); UC04, UC05 e UC08 foram revistos na Lab04S02 ([`docs/sprint-05`](docs/sprint-05/)). Cada diagrama tem a fonte PlantUML (`.puml`), a imagem (`.png`) e o PDF vetorial (`.pdf`).
 
 **Notação UML 2:** cada diagrama é um quadro `sd`; seta cheia é mensagem síncrona, seta tracejada é retorno e seta aberta é mensagem assíncrona. Os fragmentos usados são `alt`, `opt`, `loop`, `par`, `break` (fluxo de erro, que substitui o restante da interação) e `ref` (interação definida em outro diagrama). As linhas de vida são agrupadas pelas camadas MVC e usam os nomes reais das classes e dos métodos.
 
@@ -970,17 +1010,17 @@ Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc03-consultar-instituicoes.p
 <details>
 <summary><strong>UC04</strong> Manter Cadastro de Empresa Parceira</summary>
 
-Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.pdf)
+Versão atual (v2, Lab04S02: fotos no banco): [`.puml`](docs/sprint-05/diagrama-sequencia-uc04-manter-cadastro-empresa.puml) · [`.pdf`](docs/sprint-05/diagrama-sequencia-uc04-manter-cadastro-empresa.pdf) · v1: [`sprint-04`](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.puml)
 
-![UC04](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.png)
+![UC04](docs/sprint-05/diagrama-sequencia-uc04-manter-cadastro-empresa.png)
 </details>
 
 <details>
 <summary><strong>UC05</strong> Manter Vantagens</summary>
 
-Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.pdf)
+Versão atual (v2, Lab04S02: fotos no banco): [`.puml`](docs/sprint-05/diagrama-sequencia-uc05-manter-vantagens.puml) · [`.pdf`](docs/sprint-05/diagrama-sequencia-uc05-manter-vantagens.pdf) · v1: [`sprint-04`](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.puml)
 
-![UC05](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.png)
+![UC05](docs/sprint-05/diagrama-sequencia-uc05-manter-vantagens.png)
 </details>
 
 <details>
@@ -1002,9 +1042,9 @@ Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc07-consultar-extrato.puml) 
 <details>
 <summary><strong>UC08</strong> Consultar Vantagens</summary>
 
-Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.pdf)
+Versão atual (v2, Lab04S02: fotos no banco): [`.puml`](docs/sprint-05/diagrama-sequencia-uc08-consultar-vantagens.puml) · [`.pdf`](docs/sprint-05/diagrama-sequencia-uc08-consultar-vantagens.pdf) · v1: [`sprint-04`](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.puml)
 
-![UC08](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.png)
+![UC08](docs/sprint-05/diagrama-sequencia-uc08-consultar-vantagens.png)
 </details>
 
 <details>
@@ -1054,3 +1094,81 @@ Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc14-consultar-empresas-parce
 
 ![UC14](docs/sprint-04/diagrama-sequencia-uc14-consultar-empresas-parceiras.png)
 </details>
+
+---
+
+## 16. Diagrama de Implantação e Implantação na Nuvem
+
+Entrega da Lab04S02. O front-end (View) é publicado na **Vercel** e a API REST (Controller e Model), com o banco de dados, no **Render**, como sugere o enunciado.
+
+### 16.1 Diagrama de Implantação
+
+Fonte PlantUML: [`docs/sprint-05/diagrama-implantacao.puml`](docs/sprint-05/diagrama-implantacao.puml) · [`.pdf`](docs/sprint-05/diagrama-implantacao.pdf)
+
+![Diagrama de Implantação](docs/sprint-05/diagrama-implantacao.png)
+
+| Nó | Tipo UML | O que executa ou guarda |
+|---|---|---|
+| Computador ou celular do usuário › Navegador web | `<<device>>` › `<<executionEnvironment>>` | A SPA React, baixada da Vercel. Ela chama a API diretamente, com o token JWT no cabeçalho. |
+| Vercel › Rede de borda (CDN) | `<<device>>` › `<<executionEnvironment>>` | Os arquivos estáticos gerados por `npm run build` (`frontend/dist`). O `vercel.json` devolve o `index.html` para as rotas da SPA, como `/vantagens/catalogo`. |
+| Render › Balanceador de carga | `<<device>>` | Termina o HTTPS de `*.onrender.com` e repassa as requisições ao contêiner, com os cabeçalhos `X-Forwarded-*`. |
+| Render › Web Service › Contêiner Docker › JVM 21 | `<<device>>` › `<<executionEnvironment>>` | O `moeda-estudantil.jar` (Spring Boot), construído pelo [`backend/Dockerfile`](backend/Dockerfile) e executado com os perfis `nuvem` e `demo`. |
+| Render › PostgreSQL 17 | `<<device>>` › `<<executionEnvironment>>` | O banco `moeda_estudantil`, criado pelo Flyway, incluindo as fotos das vantagens. Só aceita conexões da API, pela rede privada do Render. |
+| GitHub | `<<device>>` | O repositório. Cada `git push` dispara um novo build na Vercel e no Render. |
+| Servidor SMTP | `<<device>>` | Entrega os e-mails (opcional: sem ele, os e-mails aparecem no log da API). |
+
+**Especificações de implantação** (`<<deployment spec>>`): [`render.yaml`](render.yaml), [`backend/Dockerfile`](backend/Dockerfile), [`application-nuvem.properties`](backend/src/main/resources/application-nuvem.properties) e [`frontend/vercel.json`](frontend/vercel.json).
+
+### 16.2 Adaptações para a nuvem
+
+O plano gratuito do Render tem restrições que o sistema da Release 01 não previa. Cada uma foi tratada no código ou na configuração:
+
+| Restrição | Consequência | Solução |
+|---|---|---|
+| O Render oferece PostgreSQL gerenciado, mas não MySQL | As migrações do Flyway usam a sintaxe do MySQL | Perfil `nuvem`, com o driver do PostgreSQL e as migrações em `db/postgresql` ([seção 9.3](#93-versionamento-do-esquema--flyway)). As camadas do sistema não mudaram. |
+| O disco do Web Service é apagado a cada reinício e a cada implantação | As fotos enviadas pelas empresas sumiriam | Fotos gravadas no banco: entidade `Foto`, `FotoRepository` e `FotoController`. |
+| A instância é desligada após 15 minutos sem acesso | A primeira requisição leva cerca de 1 minuto | Aviso na tela de login após 4 segundos de espera. O crédito semestral (RN04) é conferido sempre que a API inicia, então nenhum semestre é perdido mesmo que o agendamento diário não rode. |
+| Reinícios frequentes | Sem um segredo fixo, todos os tokens deixariam de valer | `JWT_SECRET` gerado pelo próprio Render (`generateValue`). |
+| Front-end e API em domínios diferentes | O navegador bloqueia as chamadas (CORS) | `CORS_ORIGINS` com o endereço da Vercel. Aceita padrões (`https://*.vercel.app`) e ignora a barra final copiada junto com a URL. |
+| HTTPS terminado no balanceador | O cabeçalho `Location` sairia com `http://` | `server.forward-headers-strategy=framework`. |
+| Servidores em UTC, nos Estados Unidos | Horários do extrato e semestre do crédito no fuso errado | JVM com `-Duser.timezone=America/Sao_Paulo`. |
+| 512 MB de memória e 0,1 CPU | Risco de falta de memória e de inicialização lenta | Heap limitada a 60% da memória, compilação JIT mais leve, 5 conexões no pool e até 20 threads no Tomcat. |
+| Saída SMTP bloqueada nas portas 25, 465 e 587 no plano gratuito ([aviso do Render](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports)) | O Gmail (porta 587) não funciona | Usar um provedor com a porta 2525, como o [Brevo](https://help.brevo.com/hc/en-us/articles/10905415650322). Sem SMTP, os e-mails continuam no log, visível no painel do Render. |
+| O PostgreSQL gratuito expira 30 dias após a criação ([documentação](https://render.com/docs/free)) | O banco fica inacessível e, 14 dias depois, é apagado | O prazo cobre a avaliação. Depois dele, basta criar o banco de novo pelo Blueprint: o Flyway recria o esquema e os dados de demonstração. |
+
+### 16.3 Passo a passo da publicação
+
+Pré-requisito: o código desta versão enviado ao GitHub (`git push`).
+
+**1. API e banco no Render**
+
+1. Em [dashboard.render.com](https://dashboard.render.com), escolha **New → Blueprint** e selecione este repositório e a branch.
+2. O Render lê o [`render.yaml`](render.yaml) e lista o Web Service `moeda-estudantil-api` e o banco `moeda-estudantil-db`, ambos no plano free.
+3. Em `CORS_ORIGINS`, informe o endereço que o front-end terá na Vercel, como `https://moeda-estudantil.vercel.app`.
+4. Clique em **Apply**. O primeiro build da imagem leva alguns minutos; ao final, `https://moeda-estudantil-api.onrender.com/api/instituicoes` deve listar as três instituições.
+
+**2. Front-end na Vercel**
+
+1. Em [vercel.com/new](https://vercel.com/new), importe o repositório e defina **Root Directory** = `frontend`. O `vercel.json` já informa o preset Vite, o comando de build e a pasta `dist`.
+2. Em **Environment Variables**, crie `VITE_API_URL` com o endereço da API do passo 1, terminado em `/api` (ex.: `https://moeda-estudantil-api.onrender.com/api`).
+3. Clique em **Deploy**. Pelo terminal, o equivalente é `vercel login` e, na pasta `frontend`, `vercel --prod --build-env VITE_API_URL=<endereço da API>/api`.
+
+**3. Ajustes finais**
+
+- Se o endereço final da Vercel for diferente do informado no passo 1, corrija `CORS_ORIGINS` em **Environment**, no painel do Render; a API reinicia sozinha.
+- E-mails reais (opcional): em **Environment**, defina `SPRING_MAIL_HOST=smtp-relay.brevo.com`, `SPRING_MAIL_PORT=2525`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true` e `MAIL_FROM` (um remetente validado no Brevo).
+- Cada `git push` na branch publicada gera uma nova implantação nos dois serviços. No Render, só alterações em `backend/` disparam um novo build.
+
+### 16.4 Endereços
+
+| Serviço | Endereço |
+|---|---|
+| Front-end (Vercel) | *a preencher após a publicação* |
+| API REST (Render) | *a preencher após a publicação* |
+
+Os logins de demonstração são os da [seção 12](#dados-da-carga-inicial), pois o perfil `demo` também está ativo na nuvem.
+
+### 16.5 Validação
+
+- **91 testes automatizados** passam, incluindo `PerfilNuvemPostgresTest`, que sobe um PostgreSQL 17 real e confere, no perfil `nuvem`, as migrações de `db/postgresql`, a validação do Hibernate, o envio de moedas, o resgate e as fotos.
+- **Nuvem simulada localmente**: o JAR foi executado com as mesmas opções de JVM do Dockerfile e os perfis `nuvem,demo`, sobre um PostgreSQL 17, e o front-end, compilado com `VITE_API_URL`, foi servido em outra origem. Foram conferidos o CORS (origem permitida e recusada), o login, o crédito semestral ao iniciar, o cadastro de vantagem com foto e o cabeçalho `Location` com `https` atrás do proxy. Depois de reiniciar a API, a foto e o token emitidos antes do reinício continuavam válidos.

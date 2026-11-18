@@ -6,16 +6,19 @@ import br.pucminas.moedaestudantil.model.EmpresaParceira;
 import br.pucminas.moedaestudantil.model.Vantagem;
 import br.pucminas.moedaestudantil.repository.AlunoRepository;
 import br.pucminas.moedaestudantil.repository.EmpresaParceiraRepository;
+import br.pucminas.moedaestudantil.repository.FotoRepository;
 import br.pucminas.moedaestudantil.repository.InstituicaoEnsinoRepository;
 import br.pucminas.moedaestudantil.repository.VantagemRepository;
 import br.pucminas.moedaestudantil.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,6 +38,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -58,6 +62,10 @@ class VantagemControllerTest {
     private AlunoRepository alunoRepository;
     @Autowired
     private InstituicaoEnsinoRepository instituicaoEnsinoRepository;
+    @Autowired
+    private FotoRepository fotoRepository;
+    @Autowired
+    private EntityManager entityManager;
     @Autowired
     private JwtService jwtService;
 
@@ -88,7 +96,52 @@ class VantagemControllerTest {
 
         // a tag <img> não envia o token, então a foto é acessível sem login
         String fotoUrl = objectMapper.readTree(resposta).get("fotoUrl").asText();
-        mockMvc.perform(get(fotoUrl)).andExpect(status().isOk());
+        mockMvc.perform(get(fotoUrl))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(DadosDeTeste.BYTES_PNG));
+    }
+
+    @Test
+    void fotoFicaGravadaNoBancoEATrocaRemoveAAnterior() throws Exception {
+        String resposta = mockMvc.perform(multipart("/api/vantagens")
+                        .file(dados("Almoço", "Almoço no restaurante", 30))
+                        .file(DadosDeTeste.foto(DadosDeTeste.BYTES_PNG))
+                        .with(comoCantina))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long id = objectMapper.readTree(resposta).get("id").asLong();
+        String fotoAnterior = objectMapper.readTree(resposta).get("fotoUrl").asText();
+        assertThat(fotoRepository.existsById(fotoAnterior.substring("/api/fotos/".length()))).isTrue();
+
+        resposta = mockMvc.perform(multipart(HttpMethod.PUT, "/api/vantagens/{id}", id)
+                        .file(dados("Almoço", "Almoço no restaurante", 30))
+                        .file(DadosDeTeste.foto(DadosDeTeste.BYTES_JPG))
+                        .with(comoCantina))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String fotoNova = objectMapper.readTree(resposta).get("fotoUrl").asText();
+        // fora do teste, cada requisição tem a sua transação e não enxerga a foto já removida do banco
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get(fotoNova)).andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_JPEG));
+        mockMvc.perform(get(fotoAnterior)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void fotosDoPerfilDemoSaoServidasDeDentroDoJar() throws Exception {
+        mockMvc.perform(get("/api/fotos/demo-almoco.png"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG));
+    }
+
+    @Test
+    void fotoInexistenteOuComNomeInvalidoRetorna404() throws Exception {
+        mockMvc.perform(get("/api/fotos/nao-existe.png")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/fotos/application.properties")).andExpect(status().isNotFound());
+        // a barra codificada nem chega ao controller: o firewall do Spring Security recusa a URL
+        mockMvc.perform(get("/api/fotos/..%2Fapplication.properties")).andExpect(status().isBadRequest());
     }
 
     @Test

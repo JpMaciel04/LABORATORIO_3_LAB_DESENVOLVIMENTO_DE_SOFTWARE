@@ -1,0 +1,86 @@
+@startuml diagrama-componentes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S02 - Diagrama de Componentes (v4)
+' Arquitetura MVC: View (React) / Controller (Spring MVC REST) / Model (services, repositories, entidades)
+' Alterações em relação à v3 (docs/sprint-03): as fotos das vantagens passam do disco para o banco
+' (o disco do servidor na nuvem é apagado a cada reinício); banco MySQL 8 local ou PostgreSQL 17 na nuvem.
+' Onde cada componente é executado: docs/sprint-05/diagrama-implantacao.puml.
+
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "Front-end (View) — React + Vite" as front {
+  component "Páginas\n(login, cadastros, vantagens,\nenvio de moedas, extrato)" as Paginas
+  component "Rotas protegidas\n(React Router, por perfil)" as Rotas
+  component "Contexto de autenticação\n(usuário logado)" as Contexto
+  component "Services do front\n(aluno, empresa, instituição,\nvantagem, transação, autenticação)" as ServicosFront
+  component "Cliente HTTP\n(Axios + interceptadores)" as ApiClient
+  component "Sessão\n(token JWT no sessionStorage)" as Sessao
+}
+
+package "Back-end — Spring Boot 3 (Java 21)" as back {
+  portin "HTTP" as httpPort
+
+  component "Segurança\n(Spring Security + JWT)" as Seguranca
+  component "Controllers REST\n(Spring MVC + Bean Validation)" as Controllers
+  component "Tratamento de erros\n(@RestControllerAdvice)" as Erros
+  component "Services\n(regras de negócio, @Transactional)" as Services
+  component "Repositories\n(DAO — Spring Data JPA)" as Repositories
+  component "Entidades\n(model — JPA/Hibernate)" as Entidades
+  component "Migrações\n(Flyway — db/migration\nou db/postgresql)" as Migracoes
+  component "Notificação por E-mail\n(JavaMailSender, após o commit)" as Email
+  component "Agendador de Crédito Semestral\n(@Scheduled)" as Agendador
+  component "Armazenamento de Imagens\n(fotos das vantagens, no banco)" as Imagens
+
+  interface "API REST\n(JSON)" as IRest
+  interface "NotificacaoService" as INotificacao
+  interface "JpaRepository" as IJpa
+}
+
+database "MySQL 8 (local)\nPostgreSQL 17 (nuvem)" as DB {
+  component "Banco moeda_estudantil\n(inclui a tabela foto)" as Schema
+}
+
+cloud "Servidor SMTP" as SMTP
+
+' ===== Front-end =====
+Rotas --> Paginas : libera por perfil
+Rotas ..> Contexto
+Paginas --> ServicosFront
+Paginas ..> Contexto
+Contexto ..> Sessao
+ServicosFront --> ApiClient
+ApiClient ..> Sessao : anexa token
+
+' ===== Front-end -> Back-end =====
+ApiClient --> httpPort : HTTP / JSON\n(/api com o proxy do Vite em dev;\nVITE_API_URL na nuvem)
+httpPort --> Seguranca
+Seguranca --> IRest : requisições\nautenticadas
+IRest - Controllers
+Controllers ..> Erros : exceções
+
+' ===== Back-end interno =====
+Controllers --> Services
+Services --> IJpa
+IJpa - Repositories
+Repositories --> Entidades
+Services --> Entidades
+Services ..> INotificacao
+INotificacao - Email
+Services ..> Imagens
+Imagens --> IJpa : FotoRepository
+Agendador ..> Services : creditar 1.000\nmoedas/semestre
+
+' ===== Infraestrutura =====
+Repositories --> Schema : JDBC (Hibernate)
+Migracoes --> Schema : cria e versiona\no esquema
+Email ..> SMTP : SMTP
+
+legend right
+  O filtro JWT valida o token e a situação do usuário a cada requisição.
+  O Hibernate apenas valida o esquema criado pelo Flyway (ddl-auto=validate).
+  **v4 (Lab04S02)**: as fotos usam o mesmo acesso a dados (JPA) dos demais services.
+endlegend
+
+@enduml

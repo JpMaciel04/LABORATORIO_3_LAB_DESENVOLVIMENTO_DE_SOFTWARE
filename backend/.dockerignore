@@ -1,0 +1,7 @@
+# Arquivos que não entram no contexto do build Docker (backend/Dockerfile)
+target/
+uploads/
+*.log
+.idea/
+.vscode/
+*.iml

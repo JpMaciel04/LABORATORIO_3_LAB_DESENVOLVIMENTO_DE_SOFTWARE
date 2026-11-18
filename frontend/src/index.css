@@ -311,6 +311,12 @@ h2 {
   border-color: #abefc6;
 }
 
+.alerta--info {
+  color: var(--cor-primaria);
+  background: var(--cor-primaria-clara);
+  border-color: #b9cfe6;
+}
+
 .alerta__fechar {
   border: 0;
   background: none;

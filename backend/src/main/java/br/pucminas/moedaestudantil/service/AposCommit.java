@@ -3,7 +3,7 @@ package br.pucminas.moedaestudantil.service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Adia efeitos que o banco não consegue desfazer (e-mails, remoção de arquivos) até a transação ser confirmada. */
+/** Adia efeitos que o banco não consegue desfazer (o envio de e-mails) até a transação ser confirmada. */
 final class AposCommit {
 
     private AposCommit() {

@@ -1,0 +1,93 @@
+@startuml diagrama-implantacao
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S02 - Diagrama de Implantação (v1) - notação UML 2
+' Front-end (View) na Vercel; API REST (Controller + Model) e banco PostgreSQL no Render.
+' Configuração correspondente: render.yaml, backend/Dockerfile, frontend/vercel.json e application-nuvem.properties.
+
+left to right direction
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam nodesep 40
+skinparam ranksep 90
+skinparam ArrowColor #1F4E79
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #1F4E79
+}
+skinparam artifact {
+  BackgroundColor #E8F0F8
+  BorderColor #1F4E79
+}
+skinparam database {
+  BackgroundColor #E8F0F8
+  BorderColor #1F4E79
+}
+
+' ===================== Cliente =====================
+node "Computador ou celular\ndo usuário" <<device>> as Cliente {
+  node "Navegador web" <<executionEnvironment>> as Navegador {
+    artifact "SPA React\n(index.html, JS e CSS)" as SpaCliente
+  }
+}
+
+' ===================== Vercel (View) =====================
+node "Vercel" <<device>> as Vercel {
+  node "Rede de borda (CDN)\nmoeda-estudantil.vercel.app" <<executionEnvironment>> as Cdn {
+    artifact "frontend/dist\n(build do Vite)" as Dist
+  }
+  artifact "vercel.json\nVITE_API_URL" <<deployment spec>> as VercelSpec
+}
+
+' ===================== Render (Controller + Model) =====================
+node "Render — região Virginia (EUA)" <<device>> as Render {
+  node "Balanceador de carga (HTTPS)\nmoeda-estudantil-api.onrender.com" <<device>> as Balanceador
+
+  node "Web Service — plano free\n0,1 CPU · 512 MB\n(desligado após 15 min sem acesso)" <<device>> as WebService {
+    node "Contêiner Docker\neclipse-temurin:21-jre" <<executionEnvironment>> as Conteiner {
+      node "JVM 21 + Tomcat embutido\nfuso America/Sao_Paulo" <<executionEnvironment>> as Jvm {
+        artifact "moeda-estudantil.jar\n(Spring Boot 3.5)" as Jar
+      }
+    }
+  }
+
+  node "Render PostgreSQL — plano free\n1 GB · sem acesso pela internet" <<device>> as ServidorBanco {
+    node "PostgreSQL 17" <<executionEnvironment>> as Postgres {
+      database "moeda_estudantil\n(tabelas e fotos das vantagens)" <<schema>> as Esquema
+    }
+  }
+
+  artifact "render.yaml (Blueprint)\nDockerfile\napplication-nuvem.properties\nvariáveis: SPRING_PROFILES_ACTIVE=nuvem,demo,\nDB_*, JWT_SECRET, CORS_ORIGINS" <<deployment spec>> as RenderSpec
+}
+
+' ===================== Externos =====================
+node "GitHub" <<device>> as GitHub {
+  artifact "Repositório\n(backend/, frontend/,\nrender.yaml)" as Repositorio
+}
+
+node "Servidor SMTP\n(ex.: Brevo)" <<device>> as Smtp
+
+' ===================== Caminhos de comunicação =====================
+Navegador -- Cdn : HTTPS\npáginas e arquivos\nestáticos
+Navegador -- Balanceador : HTTPS · REST/JSON\nBearer JWT · CORS
+Balanceador -- WebService : HTTP na porta PORT\nX-Forwarded-*
+Jvm -- Postgres : JDBC · TCP 5432\nrede privada
+Jvm -- Smtp : SMTP + STARTTLS\nporta 2525
+
+' ===================== Dependências de implantação =====================
+Dist ..> SpaCliente : <<download>>
+VercelSpec ..> Dist
+RenderSpec ..> Jar
+Dist <.. Repositorio : <<deploy>>\ngit push → npm run build
+Jar <.. Repositorio : <<deploy>>\ngit push → docker build
+
+legend right
+  **Diagrama de Implantação (v1, Lab04S02)**
+  <<device>>: recurso computacional · <<executionEnvironment>>: software que hospeda artefatos
+  <<deployment spec>>: configuração da implantação · linha cheia: caminho de comunicação
+  O JAR manifesta os componentes do back-end (segurança JWT, controllers, services,
+  repositories, e-mail, agendador e imagens) e a SPA, os do front-end (diagrama de componentes v4).
+  O esquema é criado pelo Flyway (db/postgresql). As fotos ficam no banco porque o disco
+  do Web Service é apagado a cada reinício. Ao iniciar, a API confere o crédito semestral (RN04).
+endlegend
+
+@enduml

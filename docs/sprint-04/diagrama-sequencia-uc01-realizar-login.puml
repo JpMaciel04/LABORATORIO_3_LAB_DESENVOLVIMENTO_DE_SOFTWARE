@@ -1,0 +1,67 @@
+@startuml diagrama-sequencia-uc01-realizar-login
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC01 Realizar Login (RN12, US01)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC01 Realizar Login
+
+actor "Usuário" as Ator
+box "View" #E8F0F8
+  participant ":Login" as Tela
+  participant ":AutenticacaoContext" as Ctx
+  participant ":autenticacaoService\n(Axios)" as Front
+  participant ":sessao" as Sessao
+end box
+box "Controller" #FFF4D6
+  participant ":AutenticacaoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":AutenticacaoService" as Svc
+  participant ":UsuarioRepository" as Repo
+end box
+box "Segurança" #F3E8F8
+  participant ":PasswordEncoder\n(BCrypt)" as Senha
+  participant ":JwtService" as Jwt
+end box
+database "MySQL" as DB
+
+Ator -> Tela ++ : informa e-mail e senha
+Tela -> Ctx ++ : entrar(email, senha)
+Ctx -> Front ++ : login(email, senha)
+Front -> Ctrl ++ : POST /api/auth/login\nLoginDTO
+
+break campos em branco ou e-mail mal formado
+  Ctrl --> Front : 400 ErroDTO (mensagem por campo)
+  Front --> Tela : erro
+  Tela --> Ator : mostra o erro em cada campo
+end
+
+Ctrl -> Svc ++ : autenticar(email, senha)
+Svc -> Repo ++ : findByEmailAndAtivoTrue(email)
+Repo -> DB : SELECT
+Repo --> Svc -- : Optional<Usuario>
+Svc -> Senha ++ : matches(senha, hash)
+note right of Senha
+  E-mail desconhecido também passa pelo BCrypt,
+  com um hash fictício: o tempo de resposta
+  não revela quais e-mails existem.
+end note
+Senha --> Svc -- : boolean
+
+break usuário inexistente, inativo ou senha incorreta
+  Svc --> Ctrl : CredenciaisInvalidasException
+  Ctrl --> Front : 401 ErroDTO (mensagem genérica)
+  Front --> Tela : erro
+  Tela --> Ator : permanece na tela de login
+end
+
+Svc -> Jwt ++ : gerarToken(usuario)
+Jwt --> Svc -- : token
+Svc --> Ctrl -- : Sessao(token, usuario)
+Ctrl --> Front -- : 200 TokenDTO
+Front --> Ctx -- : { token, id, nome, email, perfil }
+Ctx -> Sessao : salvar({ token, usuario })
+Ctx --> Tela -- : usuário autenticado
+Tela --> Ator -- : redireciona à área do perfil
+
+@enduml

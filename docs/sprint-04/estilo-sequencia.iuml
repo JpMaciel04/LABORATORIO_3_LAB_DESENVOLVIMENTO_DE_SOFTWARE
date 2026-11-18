@@ -1,0 +1,17 @@
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Estilo comum aos diagramas de sequência (UML 2).
+'
+' Convenções usadas em todos os diagramas:
+'   seta cheia      mensagem síncrona
+'   seta tracejada  retorno
+'   seta aberta     mensagem assíncrona
+'   break           fluxo de erro, que substitui o restante da interação
+'   ref             interação definida em outro diagrama
+
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 8
+skinparam BoxPadding 6
+skinparam sequenceGroupBodyBackgroundColor #FFFFFF90
+hide footbox

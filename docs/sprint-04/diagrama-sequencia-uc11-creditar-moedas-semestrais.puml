@@ -1,0 +1,58 @@
+@startuml diagrama-sequencia-uc11-creditar-moedas-semestrais
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC11 Creditar Moedas Semestrais (RN04, US08)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC11 Creditar Moedas Semestrais
+
+actor "Tempo" as Tempo
+box "Model" #E7F6EC
+  participant ":CreditoSemestral\nScheduler" as Sched
+  participant ":MoedaService" as Svc
+  participant "conta:Conta" as Conta
+  participant "CreditoSemestral" as Credito
+  participant ":ProfessorRepository" as ProfRepo
+  participant ":TransacaoRepository" as TxRepo
+end box
+database "MySQL" as DB
+
+alt verificação diária (@Scheduled, CREDITO_SEMESTRAL_CRON)
+  Tempo -> Sched : executar()
+else aplicação iniciou e app.credito-semestral.ao-iniciar = true
+  Tempo -> Sched : aoIniciar() (ApplicationReadyEvent)
+  Sched -> Sched : executar()
+end
+activate Sched
+
+Sched -> Credito ++ : semestreDe(LocalDate.now())
+Credito --> Sched -- : semestre
+Sched -> Svc ++ : creditarMoedasSemestrais(semestre)
+note right of Svc : @Transactional:\ntudo ou nada
+Svc -> ProfRepo ++ : findByAtivoTrue()
+ProfRepo -> DB : SELECT
+ProfRepo --> Svc -- : List<Professor>
+
+loop para cada professor ativo
+  Svc -> TxRepo ++ : existsCreditoSemestral(professor, semestre)
+  TxRepo -> DB : SELECT
+  TxRepo --> Svc -- : boolean
+  opt ainda não recebeu neste semestre (RN04)
+    Svc -> Conta ++ : creditar(1000)
+    Conta --> Svc --
+    Svc -> Credito ++ : new CreditoSemestral(professor, semestre)
+    Credito --> Svc -- : credito
+    Svc -> TxRepo ++ : save(credito)
+    TxRepo -> DB : INSERT transacao
+    TxRepo --> Svc -- : credito
+  end
+end
+
+Svc -> DB : COMMIT\nUPDATE conta (saldo anterior é mantido: acumulativo)
+Svc --> Sched -- : creditados
+
+opt creditados > 0
+  Sched -> Sched : log.info(semestre, creditados, moedas)
+end
+deactivate Sched
+
+@enduml

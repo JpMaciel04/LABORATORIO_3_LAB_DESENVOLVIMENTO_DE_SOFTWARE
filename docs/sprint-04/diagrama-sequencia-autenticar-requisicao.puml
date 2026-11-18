@@ -1,0 +1,62 @@
+@startuml diagrama-sequencia-autenticar-requisicao
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - Autenticar Requisição (RN12)
+' Interação compartilhada: referenciada (ref) por todas as rotas protegidas.
+
+!include estilo-sequencia.iuml
+mainframe **sd** Autenticar Requisição
+
+box "View" #E8F0F8
+  participant ":api\n(Axios)" as Axios
+  participant ":sessao" as Sessao
+end box
+box "Segurança" #F3E8F8
+  participant ":JwtAutenticacaoFilter" as Filtro
+  participant ":JwtService" as Jwt
+  participant ":SegurancaConfig\n(regras de acesso)" as Regras
+end box
+box "Controller" #FFF4D6
+  participant ":<Controller da rota>" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":UsuarioRepository" as Repo
+end box
+database "MySQL" as DB
+
+[-> Axios ++ : requisição a uma rota protegida
+Axios -> Sessao ++ : ler()
+Sessao --> Axios -- : { token, usuario }
+Axios -> Filtro ++ : HTTP com Authorization: Bearer token
+
+Filtro -> Jwt ++ : validarToken(token)
+Jwt --> Filtro -- : Optional<UsuarioAutenticado>
+
+opt token válido
+  Filtro -> Repo ++ : existsByIdAndAtivoTrue(id)
+  Repo -> DB : SELECT
+  Repo --> Filtro -- : boolean
+  opt usuário ainda ativo
+    Filtro -> Filtro : SecurityContext.setAuthentication(usuario)
+  end
+end
+
+Filtro -> Regras ++ : filterChain.doFilter(request)
+
+alt sem autenticação válida
+  Regras --> Axios : 401 ErroDTO
+  opt havia sessão salva
+    Axios -> Sessao : limpar()
+    Axios ->] : redireciona para /login
+  end
+else autenticado, com perfil sem permissão
+  Regras --> Axios : 403 ErroDTO
+else autenticado e com perfil permitido
+  Regras -> Ctrl ++ : requisição autenticada\n(principal: UsuarioAutenticado)
+  Ctrl --> Regras -- : resposta da operação
+  Regras --> Axios -- : resposta HTTP
+end
+deactivate Filtro
+
+[<-- Axios -- : resposta
+
+@enduml

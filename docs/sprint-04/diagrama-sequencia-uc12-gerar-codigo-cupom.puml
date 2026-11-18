@@ -1,0 +1,33 @@
+@startuml diagrama-sequencia-uc12-gerar-codigo-cupom
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC12 Gerar Código de Cupom (RN11)
+' Incluído por UC09.
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC12 Gerar Código de Cupom
+
+box "Model" #E7F6EC
+  participant ":ResgateService" as Svc
+  participant ":SecureRandom" as Rnd
+end box
+
+[-> Svc ++ : gerarCodigoCupom()
+
+loop 3 grupos separados por hífen
+  loop 4 caracteres por grupo
+    Svc -> Rnd ++ : nextInt(tamanho do alfabeto)
+    Rnd --> Svc -- : índice
+    Svc -> Svc : acrescenta ALFABETO_CUPOM[índice]
+  end
+end
+
+note right of Svc
+  Formato XXXX-XXXX-XXXX, sem os caracteres que
+  se confundem na conferência presencial (0/O e 1/I).
+  A unicidade é garantida pelo banco:
+  UNIQUE (codigo_cupom).
+end note
+
+[<-- Svc -- : código
+
+@enduml

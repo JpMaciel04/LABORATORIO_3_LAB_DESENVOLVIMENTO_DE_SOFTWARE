@@ -1,0 +1,165 @@
+@startuml diagrama-sequencia-uc04-manter-cadastro-empresa
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC04 Manter Cadastro de Empresa Parceira (RN12, US11, US12)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC04 Manter Cadastro de Empresa Parceira
+
+actor "Empresa Parceira" as Empresa
+box "View" #E8F0F8
+  participant ":EmpresaForm\n/ :EmpresaPerfil" as Tela
+  participant ":AutenticacaoContext" as Ctx
+  participant ":empresaService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":EmpresaParceira\nController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":EmpresaParceira\nService" as Svc
+  participant "empresa:\nEmpresaParceira" as Ent
+  participant ":EmpresaParceira\nRepository" as EmpRepo
+  participant ":UsuarioRepository" as UserRepo
+  participant ":TransacaoRepository" as TxRepo
+  participant ":Armazenamento\nImagemService" as Fotos
+end box
+database "MySQL" as DB
+
+alt incluir (auto-cadastro público)
+  Empresa -> Tela : preenche nome, CNPJ, e-mail e senha
+  Tela -> Front ++ : cadastrar(dados)
+  Front -> Ctrl ++ : POST /api/empresas\nEmpresaParceiraRequestDTO
+
+  break dados inválidos (Bean Validation)
+    Ctrl --> Front : 400 ErroDTO (mensagem por campo)
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro em cada campo
+  end
+
+  Ctrl -> Svc ++ : cadastrar(dto.toEntity())
+  Svc -> EmpRepo ++ : existsByCnpj(cnpj)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : boolean
+  Svc -> UserRepo ++ : existsByEmail(email)
+  UserRepo -> DB : SELECT
+  UserRepo --> Svc -- : boolean
+
+  break CNPJ ou e-mail já em uso
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro no campo
+  end
+
+  Svc -> Svc : passwordEncoder.encode(senha)
+  Svc -> EmpRepo ++ : save(empresa)
+  EmpRepo -> DB : INSERT usuario, empresa_parceira
+  EmpRepo --> Svc -- : empresa
+  Svc --> Ctrl -- : empresa
+  Ctrl --> Front -- : 201 Created + Location\nEmpresaParceiraResponseDTO
+  Front --> Tela -- : empresa
+  Tela --> Empresa : redireciona ao login
+
+else consultar
+  Empresa -> Tela : abre "Minha empresa"
+  Tela -> Front ++ : buscar(usuario.id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : GET /api/empresas/{id}
+
+  break id de outra empresa (@PreAuthorize)
+    Ctrl --> Front : 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : buscarPorId(id)
+  Svc -> EmpRepo ++ : findByIdAndAtivoTrue(id)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : Optional<EmpresaParceira>
+  Svc --> Ctrl -- : empresa
+  Ctrl --> Front -- : 200 EmpresaParceiraResponseDTO
+  Front --> Tela -- : empresa
+  Tela --> Empresa : mostra os dados
+
+else alterar
+  Empresa -> Tela : altera os dados e confirma
+  Tela -> Front ++ : atualizar(id, dados)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : PUT /api/empresas/{id}\nEmpresaParceiraRequestDTO
+
+  break dados inválidos ou id de outra empresa
+    Ctrl --> Front : 400 ou 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : atualizar(id, dto.toEntity())
+  Svc -> EmpRepo ++ : findByIdAndAtivoTrue(id)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : Optional<EmpresaParceira>
+  Svc -> EmpRepo ++ : existsByCnpjAndIdNot(cnpj, id)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : boolean
+  Svc -> UserRepo ++ : existsByEmailAndIdNot(email, id)
+  UserRepo -> DB : SELECT
+  UserRepo --> Svc -- : boolean
+
+  break CNPJ ou e-mail já em uso
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro no campo
+  end
+
+  Svc -> Ent : setNome, setCnpj, setEmail
+  opt senha informada
+    Svc -> Ent : setSenha(passwordEncoder.encode(senha))
+  end
+  Svc -> DB : COMMIT (dirty checking)\nUPDATE usuario, empresa_parceira
+  Svc --> Ctrl -- : empresa
+  Ctrl --> Front -- : 200 EmpresaParceiraResponseDTO
+  Front --> Tela -- : empresa
+  Tela -> Ctx : atualizarUsuario({ nome, email })
+  Tela --> Empresa : volta a "Minha empresa"
+
+else excluir
+  Empresa -> Tela : clica em excluir e confirma
+  Tela -> Front ++ : excluir(id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : DELETE /api/empresas/{id}
+
+  break id de outra empresa (@PreAuthorize)
+    Ctrl --> Front : 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : excluir(id)
+  Svc -> EmpRepo ++ : findByIdAndAtivoTrue(id)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : Optional<EmpresaParceira>
+  Svc -> TxRepo ++ : existsResgateByEmpresa(empresa)
+  TxRepo -> DB : SELECT
+  TxRepo --> Svc -- : boolean
+
+  alt possui resgates (US12)
+    Svc -> Ent : desativar()
+    note right of Ent : também desativa\ntodas as vantagens
+    Svc -> DB : COMMIT\nUPDATE usuario, vantagem
+  else sem resgates
+    Svc -> EmpRepo ++ : delete(empresa)
+    EmpRepo -> DB : DELETE vantagem, empresa_parceira, usuario
+    EmpRepo --> Svc --
+    Svc -> DB : COMMIT
+    loop para cada foto, depois do commit
+      Svc -> Fotos : remover(fotoUrl)
+    end
+  end
+
+  Svc --> Ctrl --
+  Ctrl --> Front -- : 204 No Content
+  Front --> Tela --
+  Tela -> Ctx : sair("A empresa foi excluída.")
+  Tela --> Empresa : redireciona ao login
+end
+
+@enduml

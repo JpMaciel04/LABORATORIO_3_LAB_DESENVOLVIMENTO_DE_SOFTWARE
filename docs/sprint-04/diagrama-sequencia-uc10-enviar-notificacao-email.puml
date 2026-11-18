@@ -1,0 +1,66 @@
+@startuml diagrama-sequencia-uc10-enviar-notificacao-email
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC10 Enviar Notificação por E-mail (RN07, RN11, US04, US15)
+' Incluído por UC06 e UC09. O texto é montado na transação; a entrega ocorre depois do commit, em segundo plano.
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC10 Enviar Notificação por E-mail
+
+box "Model" #E7F6EC
+  participant ":MoedaService\n/ :ResgateService" as Svc
+  participant ":EmailNotificacao\nService" as Email
+  participant "AposCommit" as Apos
+end box
+box "Spring" #EEEEEE
+  participant ":TransactionManager" as Tx
+  participant ":TaskExecutor" as Exec
+  participant ":JavaMailSender" as Mail
+end box
+participant "Servidor\nSMTP" as SMTP <<sistema externo>>
+
+alt moedas recebidas (UC06, RN07)
+  Svc -> Email : notificarRecebimentoMoedas(envio, professor, aluno)
+else cupom do aluno (UC09, RN11)
+  Svc -> Email : enviarCupomAluno(resgate, aluno)
+else aviso à empresa parceira (UC09, RN11)
+  Svc -> Email : notificarEmpresaParceira(resgate, aluno)
+end
+activate Email
+
+Email -> Email : monta destinatário, assunto e texto
+Email -> Apos ++ : executar(entrega)
+Apos -> Tx : registerSynchronization(afterCommit)
+Apos --> Email --
+Email --> Svc --
+
+Svc -> Tx ++ : fim do método @Transactional
+
+alt transação confirmada
+  Tx -> Apos ++ : afterCommit()
+  Apos ->> Exec : execute(entregar)
+  Apos --> Tx --
+  Tx --> Svc -- : COMMIT concluído
+
+  Exec ->> Email ++ : entregar(destinatario, assunto, texto)
+  alt SMTP não configurado
+    Email -> Email : log.info(e-mail completo)
+  else SMTP configurado
+    Email -> Mail ++ : send(mensagem)
+    Mail -> SMTP : envia a mensagem
+    alt entrega concluída
+      Mail --> Email
+    else falha na entrega
+      Mail --> Email : MailException
+      Email -> Email : log.error(falha)
+      note right of Email : a transação já está confirmada\ne não é desfeita (US04)
+    end
+    deactivate Mail
+  end
+  deactivate Email
+else transação desfeita
+  activate Tx
+  Tx --> Svc -- : ROLLBACK
+  note right of Svc : nenhum e-mail é enviado
+end
+
+@enduml

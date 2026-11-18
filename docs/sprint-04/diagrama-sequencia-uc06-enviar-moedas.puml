@@ -1,0 +1,97 @@
+@startuml diagrama-sequencia-uc06-enviar-moedas
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC06 Enviar Moedas (RN05, RN06, RN07, US09, US04)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC06 Enviar Moedas
+
+actor Professor
+box "View" #E8F0F8
+  participant ":EnvioMoedasForm" as Tela
+  participant ":transacaoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":TransacaoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":MoedaService" as Svc
+  participant "contaProfessor:\nConta" as ContaP
+  participant "contaAluno:\nConta" as ContaA
+  participant "envio:EnvioMoedas" as Envio
+  participant ":ProfessorRepository" as ProfRepo
+  participant ":AlunoRepository" as AlunoRepo
+  participant ":TransacaoRepository" as TxRepo
+  participant ":EmailNotificacao\nService" as Email
+end box
+database "MySQL" as DB
+
+Professor -> Tela : abre "Enviar moedas"
+par carregamento da tela
+  ref over Tela, DB : UC13 Consultar Alunos da Instituição
+else
+  ref over Tela, DB : UC07 Consultar Extrato (saldo atual)
+end
+
+Professor -> Tela : escolhe o aluno, a quantidade e o motivo
+Tela -> Front ++ : enviarMoedas({ alunoId, valor, motivo })
+ref over Front, Ctrl : Autenticar Requisição (perfil PROFESSOR)
+Front -> Ctrl ++ : POST /api/transacoes/envios\nEnvioMoedasDTO
+
+break aluno ou motivo ausente, ou valor não positivo (RN05)
+  Ctrl --> Front : 400 ErroDTO (mensagem por campo)
+  Front --> Tela : erro
+  Tela --> Professor : mostra o erro em cada campo
+end
+
+Ctrl -> Svc ++ : enviarMoedas(professor.id(), alunoId, valor, motivo)
+note right of Svc : @Transactional:\ntudo ou nada
+Svc -> ProfRepo ++ : findByIdAndAtivoTrue(professorId)
+ProfRepo -> DB : SELECT
+ProfRepo --> Svc -- : Optional<Professor>
+Svc -> AlunoRepo ++ : findByIdAndAtivoTrue(alunoId)
+AlunoRepo -> DB : SELECT
+AlunoRepo --> Svc -- : Optional<Aluno>
+
+break aluno inexistente, inativo ou de outra instituição (RN06)
+  Svc --> Ctrl : RegraNegocioException
+  Ctrl --> Front : 422 ErroDTO
+  Front --> Tela : erro
+  Tela --> Professor : mostra o erro no campo
+end
+
+Svc -> ContaP ++ : debitar(valor)
+
+break saldo insuficiente (RN05)
+  ContaP --> Svc : RegraNegocioException
+  Svc --> Ctrl : RegraNegocioException
+  Ctrl --> Front : 422 ErroDTO
+  Front --> Tela : erro
+  Tela --> Professor : mostra o saldo insuficiente
+end
+
+ContaP --> Svc --
+Svc -> ContaA ++ : creditar(valor)
+ContaA --> Svc --
+create Envio
+Svc -> Envio : new EnvioMoedas(professor, aluno, valor, motivo)
+Svc -> TxRepo ++ : save(envio)
+TxRepo -> DB : INSERT transacao
+TxRepo --> Svc -- : envio
+
+ref over Svc, Email : UC10 Enviar Notificação por E-mail (notificarRecebimentoMoedas)
+
+Svc -> DB : COMMIT\nUPDATE conta SET saldo = ?, versao = versao + 1\nWHERE id = ? AND versao = ?
+
+break outra operação alterou o saldo (bloqueio otimista)
+  Svc --> Ctrl : ConcurrencyFailureException
+  Ctrl --> Front : 409 ErroDTO
+  Front --> Tela : erro
+  Tela --> Professor : pede para conferir o saldo e tentar de novo
+end
+
+Svc --> Ctrl -- : envio
+Ctrl --> Front -- : 201 Created\nTransacaoDTO
+Front --> Tela -- : envio
+Tela --> Professor : confirma o envio e atualiza o saldo
+
+@enduml

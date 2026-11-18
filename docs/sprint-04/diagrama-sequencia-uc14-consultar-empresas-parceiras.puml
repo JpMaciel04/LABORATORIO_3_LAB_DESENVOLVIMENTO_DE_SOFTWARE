@@ -1,0 +1,35 @@
+@startuml diagrama-sequencia-uc14-consultar-empresas-parceiras
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC14 Consultar Empresas Parceiras (RN12)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC14 Consultar Empresas Parceiras
+
+actor "Aluno ou\nProfessor" as Ator
+box "View" #E8F0F8
+  participant ":EmpresaLista" as Tela
+  participant ":empresaService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":EmpresaParceira\nController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":EmpresaParceira\nService" as Svc
+  participant ":EmpresaParceira\nRepository" as Repo
+end box
+database "MySQL" as DB
+
+Ator -> Tela : abre "Empresas parceiras"
+Tela -> Front ++ : listar()
+ref over Front, Ctrl : Autenticar Requisição (usuário autenticado)
+Front -> Ctrl ++ : GET /api/empresas
+Ctrl -> Svc ++ : listar()
+Svc -> Repo ++ : findByAtivoTrueOrderByNomeAsc()
+Repo -> DB : SELECT
+Repo --> Svc -- : List<EmpresaParceira>
+Svc --> Ctrl -- : empresas ativas
+Ctrl --> Front -- : 200 List<EmpresaParceiraResponseDTO>
+Front --> Tela -- : empresas
+Tela --> Ator : mostra nome, CNPJ e e-mail
+
+@enduml

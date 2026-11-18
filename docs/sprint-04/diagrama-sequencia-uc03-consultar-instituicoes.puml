@@ -1,0 +1,34 @@
+@startuml diagrama-sequencia-uc03-consultar-instituicoes
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC03 Consultar Instituições de Ensino (RN02)
+' Incluído por UC02. A rota é pública, pois atende o formulário de auto-cadastro.
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC03 Consultar Instituições de Ensino
+
+box "View" #E8F0F8
+  participant ":AlunoForm" as Tela
+  participant ":instituicaoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":InstituicaoEnsino\nController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":InstituicaoEnsino\nService" as Svc
+  participant ":InstituicaoEnsino\nRepository" as Repo
+end box
+database "MySQL" as DB
+
+[-> Tela ++ : formulário aberto
+Tela -> Front ++ : listar()
+Front -> Ctrl ++ : GET /api/instituicoes
+Ctrl -> Svc ++ : listar()
+Svc -> Repo ++ : findAllByOrderByNomeAsc()
+Repo -> DB : SELECT
+Repo --> Svc -- : List<InstituicaoEnsino>
+Svc --> Ctrl -- : instituições
+Ctrl --> Front -- : 200 List<InstituicaoEnsinoDTO>
+Front --> Tela -- : instituições
+[<-- Tela -- : preenche a lista de seleção
+
+@enduml

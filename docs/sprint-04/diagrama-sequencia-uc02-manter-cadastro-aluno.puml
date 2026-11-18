@@ -1,0 +1,176 @@
+@startuml diagrama-sequencia-uc02-manter-cadastro-aluno
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC02 Manter Cadastro de Aluno (RN01, RN02, US02, US03)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC02 Manter Cadastro de Aluno
+
+actor Aluno
+box "View" #E8F0F8
+  participant ":AlunoForm\n/ :AlunoPerfil" as Tela
+  participant ":AutenticacaoContext" as Ctx
+  participant ":alunoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":AlunoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":AlunoService" as Svc
+  participant "aluno:Aluno" as Ent
+  participant ":AlunoRepository" as AlunoRepo
+  participant ":UsuarioRepository" as UserRepo
+  participant ":InstituicaoEnsino\nRepository" as InstRepo
+  participant ":TransacaoRepository" as TxRepo
+end box
+database "MySQL" as DB
+
+alt incluir (auto-cadastro público)
+  Aluno -> Tela : abre "Cadastre-se como aluno"
+  ref over Tela, DB : UC03 Consultar Instituições de Ensino
+  Aluno -> Tela : preenche os dados e confirma
+  Tela -> Front ++ : cadastrar(dados)
+  Front -> Ctrl ++ : POST /api/alunos\nAlunoRequestDTO
+
+  break dados inválidos (Bean Validation, RN01)
+    Ctrl --> Front : 400 ErroDTO (mensagem por campo)
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro em cada campo
+  end
+
+  Ctrl -> Svc ++ : cadastrar(dto.toEntity(), instituicaoId)
+  Svc -> AlunoRepo ++ : existsByCpf(cpf)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : boolean
+  Svc -> UserRepo ++ : existsByEmail(email)
+  UserRepo -> DB : SELECT
+  UserRepo --> Svc -- : boolean
+
+  break CPF ou e-mail já em uso (RN01)
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro no campo
+  end
+
+  Svc -> InstRepo ++ : findById(instituicaoId)
+  InstRepo -> DB : SELECT
+  InstRepo --> Svc -- : Optional<InstituicaoEnsino>
+
+  break instituição não participante (RN02)
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro no campo
+  end
+
+  Svc -> Svc : passwordEncoder.encode(senha)
+  Svc -> AlunoRepo ++ : save(aluno)
+  note right of AlunoRepo : a Conta nasce com saldo 0\ne é persistida em cascata
+  AlunoRepo -> DB : INSERT conta, usuario, aluno
+  AlunoRepo --> Svc -- : aluno
+  Svc --> Ctrl -- : aluno
+  Ctrl --> Front -- : 201 Created + Location\nAlunoResponseDTO
+  Front --> Tela -- : aluno
+  Tela --> Aluno : redireciona ao login
+
+else consultar
+  Aluno -> Tela : abre "Meu cadastro"
+  Tela -> Front ++ : buscar(usuario.id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil ALUNO)
+  Front -> Ctrl ++ : GET /api/alunos/{id}
+
+  break id diferente do usuário autenticado (@PreAuthorize)
+    Ctrl --> Front : 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : buscarPorId(id)
+  Svc -> AlunoRepo ++ : findByIdAndAtivoTrue(id)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : Optional<Aluno>
+  Svc --> Ctrl -- : aluno
+  Ctrl --> Front -- : 200 AlunoResponseDTO
+  Front --> Tela -- : aluno
+  Tela --> Aluno : mostra dados e saldo
+
+else alterar
+  Aluno -> Tela : abre "Alterar dados"
+  ref over Tela, DB : UC03 Consultar Instituições de Ensino
+  Aluno -> Tela : altera os dados e confirma
+  Tela -> Front ++ : atualizar(id, dados)
+  ref over Front, Ctrl : Autenticar Requisição (perfil ALUNO)
+  Front -> Ctrl ++ : PUT /api/alunos/{id}\nAlunoRequestDTO
+
+  break dados inválidos ou id de outro aluno
+    Ctrl --> Front : 400 ou 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : atualizar(id, dto.toEntity(), instituicaoId)
+  Svc -> AlunoRepo ++ : findByIdAndAtivoTrue(id)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : Optional<Aluno>
+  Svc -> AlunoRepo ++ : existsByCpfAndIdNot(cpf, id)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : boolean
+  Svc -> UserRepo ++ : existsByEmailAndIdNot(email, id)
+  UserRepo -> DB : SELECT
+  UserRepo --> Svc -- : boolean
+
+  break CPF ou e-mail já em uso (RN01)
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro no campo
+  end
+
+  Svc -> Ent : setNome, setEmail, setCpf, setRg,\nsetCurso, setEndereco, setInstituicao
+  opt senha informada
+    Svc -> Ent : setSenha(passwordEncoder.encode(senha))
+  end
+  Svc -> DB : COMMIT (dirty checking)\nUPDATE usuario, aluno
+  Svc --> Ctrl -- : aluno
+  Ctrl --> Front -- : 200 AlunoResponseDTO
+  Front --> Tela -- : aluno
+  Tela -> Ctx : atualizarUsuario({ nome, email })
+  Tela --> Aluno : volta a "Meu cadastro"
+
+else excluir
+  Aluno -> Tela : clica em "Excluir conta" e confirma
+  Tela -> Front ++ : excluir(id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil ALUNO)
+  Front -> Ctrl ++ : DELETE /api/alunos/{id}
+
+  break id de outro aluno (@PreAuthorize)
+    Ctrl --> Front : 403 ErroDTO
+    Front --> Tela : erro
+    Tela --> Aluno : mostra o erro
+  end
+
+  Ctrl -> Svc ++ : excluir(id)
+  Svc -> AlunoRepo ++ : findByIdAndAtivoTrue(id)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : Optional<Aluno>
+  Svc -> TxRepo ++ : existsByConta(conta)
+  TxRepo -> DB : SELECT
+  TxRepo --> Svc -- : boolean
+
+  alt possui movimentações (RN08)
+    Svc -> Ent : desativar()
+    Svc -> DB : COMMIT\nUPDATE usuario SET ativo = false
+  else sem movimentações
+    Svc -> AlunoRepo ++ : delete(aluno)
+    AlunoRepo -> DB : DELETE aluno, usuario, conta
+    AlunoRepo --> Svc --
+  end
+
+  Svc --> Ctrl --
+  Ctrl --> Front -- : 204 No Content
+  Front --> Tela --
+  Tela -> Ctx : sair("Sua conta foi excluída.")
+  Tela --> Aluno : redireciona ao login
+end
+
+@enduml

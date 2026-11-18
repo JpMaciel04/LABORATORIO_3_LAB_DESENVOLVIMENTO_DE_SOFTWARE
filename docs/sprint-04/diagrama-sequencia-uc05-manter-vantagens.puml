@@ -1,0 +1,156 @@
+@startuml diagrama-sequencia-uc05-manter-vantagens
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC05 Manter Vantagens (RN09, US13, US14)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC05 Manter Vantagens
+
+actor "Empresa Parceira" as Empresa
+box "View" #E8F0F8
+  participant ":VantagemLista\n/ :VantagemForm" as Tela
+  participant ":vantagemService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":VantagemController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":VantagemService" as Svc
+  participant "vantagem:Vantagem" as Ent
+  participant ":Armazenamento\nImagemService" as Fotos
+  participant ":EmpresaParceira\nRepository" as EmpRepo
+  participant ":VantagemRepository" as Repo
+end box
+database "MySQL" as DB
+participant "Disco\n(UPLOAD_DIR)" as Disco
+
+alt listar as vantagens da empresa
+  Empresa -> Tela : abre "Minhas vantagens"
+  Tela -> Front ++ : listarMinhas()
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : GET /api/vantagens/minhas
+  Ctrl -> Svc ++ : listarDaEmpresa(empresa.id())
+  Svc -> Repo ++ : findByEmpresaIdOrderByNomeAsc(empresaId)
+  Repo -> DB : SELECT
+  Repo --> Svc -- : List<Vantagem>
+  Svc --> Ctrl -- : vantagens, inclusive as desativadas
+  Ctrl --> Front -- : 200 List<VantagemResponseDTO>
+  Front --> Tela -- : vantagens
+  Tela --> Empresa : mostra foto, nome, situação e custo
+
+else cadastrar
+  Empresa -> Tela : informa nome, descrição, custo e foto
+  Tela -> Front ++ : cadastrar(dados, foto)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : POST /api/vantagens (multipart)\npartes: dados e foto
+
+  break dados inválidos ou foto acima de 5 MB
+    Ctrl --> Front : 400 ou 413 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro no campo
+  end
+
+  Ctrl -> Svc ++ : cadastrar(empresa.id(), dto.toEntity(), foto)
+  Svc -> EmpRepo ++ : findByIdAndAtivoTrue(empresaId)
+  EmpRepo -> DB : SELECT
+  EmpRepo --> Svc -- : Optional<EmpresaParceira>
+  Svc -> Ent : setEmpresa(empresa)
+  Svc -> Fotos ++ : salvar(foto)
+  Fotos -> Fotos : identificarExtensao(foto)\nconfere o conteúdo do arquivo
+
+  break foto ausente ou que não é JPG nem PNG (RN09, US13)
+    Fotos --> Svc : RegraNegocioException
+    Svc --> Ctrl : RegraNegocioException
+    Ctrl --> Front : 422 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro no campo
+  end
+
+  Fotos -> Disco : grava {uuid}.jpg ou .png
+  Fotos --> Svc -- : URL pública da foto
+  Svc -> Ent : setFotoUrl(url)
+  Svc -> Repo ++ : save(vantagem)
+  Repo -> DB : INSERT vantagem
+  Repo --> Svc -- : vantagem
+  Svc --> Ctrl -- : vantagem
+  Ctrl --> Front -- : 201 Created + Location\nVantagemResponseDTO
+  Front --> Tela -- : vantagem
+  Tela --> Empresa : volta à lista com a confirmação
+
+else alterar
+  Empresa -> Tela : abre "Editar"
+  Tela -> Front ++ : buscar(id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : GET /api/vantagens/{id}
+  Ctrl -> Svc ++ : buscarDaEmpresa(empresa.id(), id)
+  Svc -> Repo ++ : findByIdAndEmpresaId(id, empresaId)
+  Repo -> DB : SELECT
+  Repo --> Svc -- : Optional<Vantagem>
+
+  break vantagem inexistente ou de outra empresa (US14)
+    Svc --> Ctrl : RecursoNaoEncontradoException
+    Ctrl --> Front : 404 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro
+  end
+
+  Svc --> Ctrl -- : vantagem
+  Ctrl --> Front -- : 200 VantagemResponseDTO
+  Front --> Tela -- : vantagem
+
+  Empresa -> Tela : altera os dados e confirma
+  Tela -> Front ++ : atualizar(id, dados, foto)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : PUT /api/vantagens/{id} (multipart)
+  Ctrl -> Svc ++ : atualizar(empresa.id(), id, dto.toEntity(), foto)
+  Svc -> Repo ++ : findByIdAndEmpresaId(id, empresaId)
+  Repo -> DB : SELECT
+  Repo --> Svc -- : Optional<Vantagem>
+  Svc -> Ent : atualizar(nome, descricao, custoMoedas)
+
+  opt nova foto enviada
+    Svc -> Fotos ++ : salvar(foto)
+    Fotos -> Disco : grava a nova foto
+    Fotos --> Svc -- : URL pública da foto
+    Svc -> Ent : setFotoUrl(url)
+  end
+
+  Svc -> DB : COMMIT (dirty checking)\nUPDATE vantagem
+
+  opt nova foto enviada, depois do commit
+    Svc -> Fotos ++ : remover(fotoAnterior)
+    Fotos -> Disco : apaga a foto anterior
+    Fotos --> Svc --
+  end
+
+  Svc --> Ctrl -- : vantagem
+  Ctrl --> Front -- : 200 VantagemResponseDTO
+  Front --> Tela -- : vantagem
+  Tela --> Empresa : volta à lista com a confirmação
+
+else desativar
+  Empresa -> Tela : clica em "Desativar" e confirma
+  Tela -> Front ++ : excluir(id)
+  ref over Front, Ctrl : Autenticar Requisição (perfil EMPRESA)
+  Front -> Ctrl ++ : DELETE /api/vantagens/{id}
+  Ctrl -> Svc ++ : excluir(empresa.id(), id)
+  Svc -> Repo ++ : findByIdAndEmpresaId(id, empresaId)
+  Repo -> DB : SELECT
+  Repo --> Svc -- : Optional<Vantagem>
+
+  break vantagem inexistente ou de outra empresa (US14)
+    Svc --> Ctrl : RecursoNaoEncontradoException
+    Ctrl --> Front : 404 ErroDTO
+    Front --> Tela : erro
+    Tela --> Empresa : mostra o erro
+  end
+
+  Svc -> Ent : desativar()
+  note right of Ent : sai do catálogo, mas continua\nnos extratos de quem já resgatou
+  Svc -> DB : COMMIT\nUPDATE vantagem SET ativa = false
+  Svc --> Ctrl --
+  Ctrl --> Front -- : 204 No Content
+  Front --> Tela --
+  Tela --> Empresa : marca a vantagem como "Desativada"
+end
+
+@enduml

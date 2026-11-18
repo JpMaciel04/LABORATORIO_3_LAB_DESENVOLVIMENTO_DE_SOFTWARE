@@ -1,0 +1,40 @@
+@startuml diagrama-sequencia-uc13-consultar-alunos-instituicao
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC13 Consultar Alunos da Instituição (RN06, US09)
+' Incluído por UC06. A resposta traz apenas o resumo do aluno, sem dados pessoais.
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC13 Consultar Alunos da Instituição
+
+actor Professor
+box "View" #E8F0F8
+  participant ":EnvioMoedasForm\n/ :AlunoLista" as Tela
+  participant ":alunoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":AlunoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":AlunoService" as Svc
+  participant ":ProfessorRepository" as ProfRepo
+  participant ":AlunoRepository" as AlunoRepo
+end box
+database "MySQL" as DB
+
+Professor -> Tela : abre "Enviar moedas" ou "Alunos"
+Tela -> Front ++ : listar()
+ref over Front, Ctrl : Autenticar Requisição (perfil PROFESSOR)
+Front -> Ctrl ++ : GET /api/alunos
+Ctrl -> Svc ++ : listarDaInstituicaoDoProfessor(professor.id())
+Svc -> ProfRepo ++ : findByIdAndAtivoTrue(professorId)
+ProfRepo -> DB : SELECT
+ProfRepo --> Svc -- : Optional<Professor>
+Svc -> AlunoRepo ++ : findByInstituicaoIdAndAtivoTrueOrderByNomeAsc(instituicaoId)
+AlunoRepo -> DB : SELECT
+AlunoRepo --> Svc -- : List<Aluno>
+Svc --> Ctrl -- : alunos da mesma instituição (RN06)
+Ctrl --> Front -- : 200 List<AlunoResumoDTO>
+Front --> Tela -- : alunos
+Tela --> Professor : mostra nome e curso de cada aluno
+
+@enduml

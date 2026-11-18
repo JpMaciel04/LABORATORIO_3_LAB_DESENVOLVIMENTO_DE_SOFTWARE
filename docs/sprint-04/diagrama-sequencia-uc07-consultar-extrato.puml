@@ -1,0 +1,57 @@
+@startuml diagrama-sequencia-uc07-consultar-extrato
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC07 Consultar Extrato (RN08, US05, US10)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC07 Consultar Extrato
+
+actor "Aluno ou\nProfessor" as Ator
+box "View" #E8F0F8
+  participant ":Extrato\n(página)" as Tela
+  participant ":transacaoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":TransacaoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":ExtratoService" as Svc
+  participant "extrato:Extrato" as Ext
+  participant ":UsuarioRepository" as UserRepo
+  participant ":TransacaoRepository" as TxRepo
+  participant ":AlunoRepository" as AlunoRepo
+  participant ":ProfessorRepository" as ProfRepo
+end box
+database "MySQL" as DB
+
+Ator -> Tela : abre "Extrato"
+Tela -> Front ++ : consultarExtrato()
+ref over Front, Ctrl : Autenticar Requisição (perfis ALUNO e PROFESSOR)
+Front -> Ctrl ++ : GET /api/transacoes/extrato
+Ctrl -> Svc ++ : consultarExtrato(usuario.id())
+Svc -> UserRepo ++ : findById(usuarioId)
+UserRepo -> DB : SELECT
+UserRepo --> Svc -- : Optional<Usuario>
+Svc -> Svc : contaDe(usuario)
+Svc -> TxRepo ++ : findByConta(conta)
+TxRepo -> DB : SELECT, da mais recente\npara a mais antiga
+TxRepo --> Svc -- : List<Transacao>
+
+group buscarTitulares: uma consulta por perfil, sem N+1
+  Svc -> AlunoRepo ++ : findTitulares(contaIds)
+  AlunoRepo -> DB : SELECT
+  AlunoRepo --> Svc -- : List<TitularConta>
+  Svc -> ProfRepo ++ : findTitulares(contaIds)
+  ProfRepo -> DB : SELECT
+  ProfRepo --> Svc -- : List<TitularConta>
+end
+
+create Ext
+Svc -> Ext : new Extrato(conta, transacoes, titulares)
+Svc --> Ctrl -- : extrato
+Ctrl -> Ext ++ : ExtratoDTO.from(extrato)\ngetSaldoAtual, getTransacoes, isEntrada, getTitular
+Ext --> Ctrl --
+Ctrl --> Front -- : 200 ExtratoDTO
+Front --> Tela -- : { saldoAtual, transacoes }
+Tela --> Ator : mostra o saldo e as transações
+
+@enduml

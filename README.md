@@ -1,7 +1,7 @@
 # Sistema de Moeda Estudantil — Projeto de Software
 
 **PUC Minas — Engenharia de Software**
-Laboratório 3 — Segundo Semestre/2026
+Laboratórios 3 e 4 (Releases 01 e 02) — Segundo Semestre/2026
 Disciplina: Projeto de Software — Profa. Milena Menezes Adão
 Integrantes: João Pedro Maciel de Oliveira
 
@@ -23,6 +23,7 @@ Integrantes: João Pedro Maciel de Oliveira
 12. [Como Executar](#12-como-executar)
 13. [Estrutura do Repositório](#13-estrutura-do-repositório)
 14. [Andamento das Sprints](#14-andamento-das-sprints)
+15. [Diagramas de Sequência e Visão Geral de Interação](#15-diagramas-de-sequência-e-visão-geral-de-interação)
 
 ---
 
@@ -411,9 +412,9 @@ Fonte PlantUML: [`docs/sprint-03/diagrama-classes-dto.puml`](docs/sprint-03/diag
 
 ### 6.5 Sequência de uma requisição: Resgatar Vantagem
 
-Exemplo de uma operação atravessando todas as camadas, da tela ao banco e ao servidor de e-mail. Fonte PlantUML: [`docs/sprint-03/diagrama-sequencia-resgate.puml`](docs/sprint-03/diagrama-sequencia-resgate.puml)
+Exemplo de uma operação atravessando todas as camadas, da tela ao banco. Os diagramas de todos os casos de uso estão na [seção 15](#15-diagramas-de-sequência-e-visão-geral-de-interação). Fonte PlantUML: [`docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml`](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml) · v1: [`sprint-03`](docs/sprint-03/diagrama-sequencia-resgate.puml)
 
-![Diagrama de Sequência — Resgatar Vantagem](docs/sprint-03/diagrama-sequencia-resgate.png)
+![Diagrama de Sequência — Resgatar Vantagem](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.png)
 
 ---
 
@@ -804,21 +805,26 @@ Os professores recebem as 1.000 moedas do semestre logo que a API inicia.
     │   ├── diagrama-classes-camadas.puml / .png / .pdf
     │   ├── diagrama-classes-dto.puml / .png / .pdf
     │   └── diagrama-componentes.puml / .png / .pdf
-    └── sprint-03/                            # versão final, alinhada ao código
-        ├── casos-de-uso.puml / .png / .pdf                # casos de uso (v2)
-        ├── modelo-er.puml / .png / .pdf                   # modelo ER (v2)
-        ├── diagrama-classes.puml / .png / .pdf            # modelo de domínio (v3)
-        ├── diagrama-classes-camadas.puml / .png / .pdf    # controller / security / service / repository (v3)
-        ├── diagrama-classes-dto.puml / .png / .pdf        # DTOs e tratamento de erros (v2)
-        ├── diagrama-componentes.puml / .png / .pdf        # componentes (v3)
-        ├── diagrama-sequencia-resgate.puml / .png / .pdf  # sequência de uma requisição (novo)
-        └── telas/                                         # capturas do protótipo em execução
+    ├── sprint-03/                            # versão final da Release 01, alinhada ao código
+    │   ├── casos-de-uso.puml / .png / .pdf                # casos de uso (v2)
+    │   ├── modelo-er.puml / .png / .pdf                   # modelo ER (v2)
+    │   ├── diagrama-classes.puml / .png / .pdf            # modelo de domínio (v3)
+    │   ├── diagrama-classes-camadas.puml / .png / .pdf    # controller / security / service / repository (v3)
+    │   ├── diagrama-classes-dto.puml / .png / .pdf        # DTOs e tratamento de erros (v2)
+    │   ├── diagrama-componentes.puml / .png / .pdf        # componentes (v3)
+    │   ├── diagrama-sequencia-resgate.puml / .png / .pdf  # sequência de uma requisição (v1)
+    │   └── telas/                                         # capturas do protótipo em execução
+    └── sprint-04/                            # Lab04S01: modelos de interação
+        ├── diagrama-visao-geral-interacao.puml / .png / .pdf    # visão geral de interação
+        ├── diagrama-sequencia-autenticar-requisicao.puml / ...  # interação compartilhada (ref)
+        ├── diagrama-sequencia-uc01-realizar-login.puml / ...    # um diagrama por caso de uso (UC01 a UC14)
+        └── estilo-sequencia.iuml                                # estilo comum aos diagramas de sequência
 ```
 
 Cada sprint tem sua própria pasta em `docs/`, preservando todas as versões dos modelos UML, conforme exigido no enunciado. Cada diagrama tem a fonte PlantUML (`.puml`), a imagem (`.png`) e uma versão em PDF vetorial (`.pdf`). Para regerar as imagens a partir das fontes:
 
 ```
-java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/sprint-03/*.puml
+java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/sprint-03/*.puml docs/sprint-04/*.puml
 ```
 
 > Os PDFs foram gerados a partir da exportação SVG do PlantUML (`-tsvg`) e impressos via navegador, pois a exportação `-tpdf` exige bibliotecas adicionais (Apache Batik/FOP).
@@ -832,6 +838,32 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 | **Lab03S01** | Diagrama de Casos de Uso, Histórias de Usuário, Diagrama de Classes e Diagrama de Componentes | ✅ Entregue |
 | **Lab03S02** | Modelo ER, estratégia de acesso ao banco (ORM/DAO), CRUDs de aluno e empresa parceira (versão inicial: front-end e comunicação com back-end) | ✅ Entregue |
 | **Lab03S03** | CRUDs de aluno e empresa parceira (versão final), apresentação da arquitetura e da camada de persistência (slides) | ✅ Entregue |
+| **Lab04S01** | Diagramas de Sequência, Diagrama de Visão Geral de Interação e implementação dos casos de uso restantes | ✅ Entregue |
+
+### Entregas da Lab04S01
+
+- **Diagramas de Sequência**: um por caso de uso (UC01 a UC14), mais a interação compartilhada Autenticar Requisição ([seção 15](#15-diagramas-de-sequência-e-visão-geral-de-interação)).
+- **Diagrama de Visão Geral de Interação**: encadeia as interações do sistema, do cadastro e login até as operações de cada perfil.
+- **Casos de uso restantes**: nenhum ficou pendente. O protótipo completo foi construído na Release 01, à frente do cronograma, então esta sprint auditou os 14 casos de uso em relação ao código, sem precisar alterá-lo:
+
+| Caso de uso | Back-end | Tela | Testes automatizados |
+|---|---|---|---|
+| UC01 Realizar Login | `AutenticacaoController`, `AutenticacaoService` | `Login` | `AutenticacaoControllerTest` |
+| UC02 Manter Cadastro de Aluno | `AlunoController`, `AlunoService` | `AlunoForm`, `AlunoPerfil` | `AlunoControllerTest`, `PersistenciaTest` |
+| UC03 Consultar Instituições de Ensino | `InstituicaoEnsinoController`, `InstituicaoEnsinoService` | `AlunoForm` | `InstituicaoEnsinoControllerTest` |
+| UC04 Manter Cadastro de Empresa Parceira | `EmpresaParceiraController`, `EmpresaParceiraService` | `EmpresaForm`, `EmpresaPerfil` | `EmpresaParceiraControllerTest` |
+| UC05 Manter Vantagens | `VantagemController`, `VantagemService`, `ArmazenamentoImagemService` | `VantagemLista`, `VantagemForm` | `VantagemControllerTest` |
+| UC06 Enviar Moedas | `TransacaoController`, `MoedaService` | `EnvioMoedasForm` | `TransacaoControllerTest`, `ConcorrenciaSaldoTest` |
+| UC07 Consultar Extrato | `TransacaoController`, `ExtratoService` | `Extrato` | `TransacaoControllerTest` |
+| UC08 Consultar Vantagens | `VantagemController`, `VantagemService` | `VantagemCatalogo` | `VantagemControllerTest` |
+| UC09 Resgatar Vantagem | `TransacaoController`, `ResgateService` | `VantagemCatalogo` | `TransacaoControllerTest` |
+| UC10 Enviar Notificação por E-mail | `EmailNotificacaoService` | — | `NotificacaoEmailTest` |
+| UC11 Creditar Moedas Semestrais | `CreditoSemestralScheduler`, `MoedaService` | — | `CreditoSemestralTest` |
+| UC12 Gerar Código de Cupom | `ResgateService` | `VantagemCatalogo`, `Extrato` | `TransacaoControllerTest` |
+| UC13 Consultar Alunos da Instituição | `AlunoController`, `AlunoService` | `AlunoLista`, `EnvioMoedasForm` | `AlunoControllerTest` |
+| UC14 Consultar Empresas Parceiras | `EmpresaParceiraController`, `EmpresaParceiraService` | `EmpresaLista` | `EmpresaParceiraControllerTest` |
+
+**Validação realizada:** os 83 testes automatizados passaram e o front-end compilou sem erros. A API também foi executada de verdade (H2 com o perfil `demo`) e percorrida por HTTP, com 49 verificações que cobrem os 14 casos de uso, incluindo caminhos de erro e os e-mails registrados no log.
 
 ### Entregas da Sprint 3
 
@@ -875,7 +907,7 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 
 ### Histórico de versões dos modelos
 
-| Modelo | Sprint 1 | Sprint 2 | Sprint 3 | Mudanças na Sprint 3 |
+| Modelo | Sprint 1 | Sprint 2 | Sprint 3 | Mudanças mais recentes |
 |---|---|---|---|---|
 | Casos de Uso | [v1](docs/sprint-01/casos-de-uso.puml) | — | [v2](docs/sprint-03/casos-de-uso.puml) | UC13 (Consultar Alunos da Instituição) e UC14 (Consultar Empresas Parceiras). |
 | Classes — domínio | [v1](docs/sprint-01/diagrama-classes.puml) | [v2](docs/sprint-02/diagrama-classes.puml) | [v3](docs/sprint-03/diagrama-classes.puml) | `Perfil` e `getPerfil()`; `Conta.versao`; `Extrato` com os titulares das contas; `Vantagem.atualizar()`; `CreditoSemestral.semestreDe()`. |
@@ -883,4 +915,142 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 | Classes — DTOs | — | [v1](docs/sprint-02/diagrama-classes-dto.puml) | [v2](docs/sprint-03/diagrama-classes-dto.puml) | DTOs de login, vantagens, transações e extrato; respostas 401, 403, 409 e 413. |
 | Componentes | [v1](docs/sprint-01/diagrama-componentes.puml) | [v2](docs/sprint-02/diagrama-componentes.puml) | [v3](docs/sprint-03/diagrama-componentes.puml) | Componentes planejados implementados; rotas protegidas e contexto de autenticação no front-end; diretório de fotos em disco. |
 | Modelo ER | — | [v1](docs/sprint-02/modelo-er.puml) | [v2](docs/sprint-03/modelo-er.puml) | Coluna `conta.versao`. |
-| Sequência (Resgatar Vantagem) | — | — | [v1](docs/sprint-03/diagrama-sequencia-resgate.puml) | Novo: uma requisição atravessando todas as camadas. |
+| Sequência (Resgatar Vantagem) | — | — | [v1](docs/sprint-03/diagrama-sequencia-resgate.puml) | [v2 na Lab04S01](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml): o `COMMIT` passa a ocorrer antes do retorno ao controller, os e-mails são detalhados no UC10 e cada repositório e entidade tem a sua linha de vida. |
+| Sequência (demais casos de uso) | — | — | — | Novos na Lab04S01: [`docs/sprint-04`](docs/sprint-04/). |
+| Visão Geral de Interação | — | — | — | Novo na Lab04S01: [v1](docs/sprint-04/diagrama-visao-geral-interacao.puml). |
+
+---
+
+## 15. Diagramas de Sequência e Visão Geral de Interação
+
+Modelos da Lab04S01, em [`docs/sprint-04`](docs/sprint-04/). Cada diagrama tem a fonte PlantUML (`.puml`), a imagem (`.png`) e o PDF vetorial (`.pdf`).
+
+**Notação UML 2:** cada diagrama é um quadro `sd`; seta cheia é mensagem síncrona, seta tracejada é retorno e seta aberta é mensagem assíncrona. Os fragmentos usados são `alt`, `opt`, `loop`, `par`, `break` (fluxo de erro, que substitui o restante da interação) e `ref` (interação definida em outro diagrama). As linhas de vida são agrupadas pelas camadas MVC e usam os nomes reais das classes e dos métodos.
+
+### 15.1 Visão Geral de Interação
+
+Mostra como as interações se encadeiam: cada quadro `ref` é um dos diagramas de sequência abaixo. O crédito semestral (UC11) corre em paralelo às sessões dos usuários, pois é disparado pelo tempo. Fonte PlantUML: [`docs/sprint-04/diagrama-visao-geral-interacao.puml`](docs/sprint-04/diagrama-visao-geral-interacao.puml)
+
+![Diagrama de Visão Geral de Interação](docs/sprint-04/diagrama-visao-geral-interacao.png)
+
+> O PlantUML não tem um tipo próprio para este diagrama, por isso a notação da UML (nós de controle e quadros `ref`) foi composta com a sintaxe de atividades.
+
+### 15.2 Interação compartilhada: Autenticar Requisição
+
+Referenciada por todas as rotas protegidas: validação do token JWT, conferência de que o usuário continua ativo e regras de acesso por perfil (RN12). Fonte PlantUML: [`docs/sprint-04/diagrama-sequencia-autenticar-requisicao.puml`](docs/sprint-04/diagrama-sequencia-autenticar-requisicao.puml)
+
+![Diagrama de Sequência — Autenticar Requisição](docs/sprint-04/diagrama-sequencia-autenticar-requisicao.png)
+
+### 15.3 Diagramas de Sequência por caso de uso
+
+<details>
+<summary><strong>UC01</strong> Realizar Login</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc01-realizar-login.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc01-realizar-login.pdf)
+
+![UC01](docs/sprint-04/diagrama-sequencia-uc01-realizar-login.png)
+</details>
+
+<details>
+<summary><strong>UC02</strong> Manter Cadastro de Aluno</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc02-manter-cadastro-aluno.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc02-manter-cadastro-aluno.pdf)
+
+![UC02](docs/sprint-04/diagrama-sequencia-uc02-manter-cadastro-aluno.png)
+</details>
+
+<details>
+<summary><strong>UC03</strong> Consultar Instituições de Ensino</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc03-consultar-instituicoes.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc03-consultar-instituicoes.pdf)
+
+![UC03](docs/sprint-04/diagrama-sequencia-uc03-consultar-instituicoes.png)
+</details>
+
+<details>
+<summary><strong>UC04</strong> Manter Cadastro de Empresa Parceira</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.pdf)
+
+![UC04](docs/sprint-04/diagrama-sequencia-uc04-manter-cadastro-empresa.png)
+</details>
+
+<details>
+<summary><strong>UC05</strong> Manter Vantagens</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.pdf)
+
+![UC05](docs/sprint-04/diagrama-sequencia-uc05-manter-vantagens.png)
+</details>
+
+<details>
+<summary><strong>UC06</strong> Enviar Moedas</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc06-enviar-moedas.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc06-enviar-moedas.pdf)
+
+![UC06](docs/sprint-04/diagrama-sequencia-uc06-enviar-moedas.png)
+</details>
+
+<details>
+<summary><strong>UC07</strong> Consultar Extrato</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc07-consultar-extrato.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc07-consultar-extrato.pdf)
+
+![UC07](docs/sprint-04/diagrama-sequencia-uc07-consultar-extrato.png)
+</details>
+
+<details>
+<summary><strong>UC08</strong> Consultar Vantagens</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.pdf)
+
+![UC08](docs/sprint-04/diagrama-sequencia-uc08-consultar-vantagens.png)
+</details>
+
+<details>
+<summary><strong>UC09</strong> Resgatar Vantagem</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.pdf)
+
+![UC09](docs/sprint-04/diagrama-sequencia-uc09-resgatar-vantagem.png)
+</details>
+
+<details>
+<summary><strong>UC10</strong> Enviar Notificação por E-mail</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc10-enviar-notificacao-email.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc10-enviar-notificacao-email.pdf)
+
+![UC10](docs/sprint-04/diagrama-sequencia-uc10-enviar-notificacao-email.png)
+</details>
+
+<details>
+<summary><strong>UC11</strong> Creditar Moedas Semestrais</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc11-creditar-moedas-semestrais.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc11-creditar-moedas-semestrais.pdf)
+
+![UC11](docs/sprint-04/diagrama-sequencia-uc11-creditar-moedas-semestrais.png)
+</details>
+
+<details>
+<summary><strong>UC12</strong> Gerar Código de Cupom</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc12-gerar-codigo-cupom.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc12-gerar-codigo-cupom.pdf)
+
+![UC12](docs/sprint-04/diagrama-sequencia-uc12-gerar-codigo-cupom.png)
+</details>
+
+<details>
+<summary><strong>UC13</strong> Consultar Alunos da Instituição</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc13-consultar-alunos-instituicao.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc13-consultar-alunos-instituicao.pdf)
+
+![UC13](docs/sprint-04/diagrama-sequencia-uc13-consultar-alunos-instituicao.png)
+</details>
+
+<details>
+<summary><strong>UC14</strong> Consultar Empresas Parceiras</summary>
+
+Fonte: [`.puml`](docs/sprint-04/diagrama-sequencia-uc14-consultar-empresas-parceiras.puml) · [`.pdf`](docs/sprint-04/diagrama-sequencia-uc14-consultar-empresas-parceiras.pdf)
+
+![UC14](docs/sprint-04/diagrama-sequencia-uc14-consultar-empresas-parceiras.png)
+</details>

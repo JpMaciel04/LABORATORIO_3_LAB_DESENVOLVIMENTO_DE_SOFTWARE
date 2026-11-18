@@ -1,0 +1,85 @@
+@startuml diagrama-sequencia-uc09-resgatar-vantagem
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência (v2) - UC09 Resgatar Vantagem (RN10, RN11, US07, US15)
+' Alterações em relação à v1 (docs/sprint-03): o COMMIT ocorre antes do retorno ao controller, os e-mails
+' passam a ser detalhados no UC10 e cada repositório e cada entidade têm a sua própria linha de vida.
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC09 Resgatar Vantagem
+
+actor Aluno
+box "View" #E8F0F8
+  participant ":VantagemCatalogo" as Tela
+  participant ":transacaoService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":TransacaoController" as Ctrl
+end box
+box "Model" #E7F6EC
+  participant ":ResgateService" as Svc
+  participant "contaAluno:\nConta" as Conta
+  participant "resgate:\nResgateVantagem" as Resgate
+  participant ":AlunoRepository" as AlunoRepo
+  participant ":VantagemRepository" as VantRepo
+  participant ":TransacaoRepository" as TxRepo
+  participant ":EmailNotificacao\nService" as Email
+end box
+database "MySQL" as DB
+
+ref over Aluno, DB : UC08 Consultar Vantagens
+
+Aluno -> Tela : clica em "Resgatar" e confirma
+Tela -> Front ++ : resgatarVantagem(vantagem.id)
+ref over Front, Ctrl : Autenticar Requisição (perfil ALUNO)
+Front -> Ctrl ++ : POST /api/transacoes/resgates/{vantagemId}
+Ctrl -> Svc ++ : resgatarVantagem(aluno.id(), vantagemId)
+note right of Svc : @Transactional:\ntudo ou nada
+Svc -> AlunoRepo ++ : findByIdAndAtivoTrue(alunoId)
+AlunoRepo -> DB : SELECT
+AlunoRepo --> Svc -- : Optional<Aluno>
+Svc -> VantRepo ++ : findByIdAndAtivaTrue(vantagemId)
+VantRepo -> DB : SELECT
+VantRepo --> Svc -- : Optional<Vantagem>
+
+break vantagem inexistente ou desativada
+  Svc --> Ctrl : RecursoNaoEncontradoException
+  Ctrl --> Front : 404 ErroDTO
+  Front --> Tela : erro
+  Tela --> Aluno : mostra o erro
+end
+
+Svc -> Conta ++ : debitar(custoMoedas)
+
+break saldo insuficiente (RN10)
+  Conta --> Svc : RegraNegocioException
+  Svc --> Ctrl : RegraNegocioException
+  Ctrl --> Front : 422 ErroDTO
+  Front --> Tela : erro
+  Tela --> Aluno : mostra o saldo insuficiente
+end
+
+Conta --> Svc --
+ref over Svc : UC12 Gerar Código\nde Cupom
+create Resgate
+Svc -> Resgate : new ResgateVantagem(aluno, vantagem, codigo)
+Svc -> TxRepo ++ : save(resgate)
+TxRepo -> DB : INSERT transacao
+TxRepo --> Svc -- : resgate
+
+ref over Svc, Email : UC10 Enviar Notificação por E-mail (enviarCupomAluno e notificarEmpresaParceira)
+
+Svc -> DB : COMMIT\nUPDATE conta SET saldo = ?, versao = versao + 1\nWHERE id = ? AND versao = ?
+
+break outra operação alterou o saldo (bloqueio otimista)
+  Svc --> Ctrl : ConcurrencyFailureException
+  Ctrl --> Front : 409 ErroDTO
+  Front --> Tela : erro
+  Tela --> Aluno : pede para conferir o saldo e tentar de novo
+end
+
+Svc --> Ctrl -- : resgate
+Ctrl --> Front -- : 201 Created\nTransacaoDTO (codigoCupom)
+Front --> Tela -- : resgate
+Tela --> Aluno : mostra o cupom e o novo saldo
+
+@enduml

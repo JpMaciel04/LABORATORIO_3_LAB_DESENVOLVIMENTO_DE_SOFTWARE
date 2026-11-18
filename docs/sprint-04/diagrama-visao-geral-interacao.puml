@@ -1,0 +1,139 @@
+@startuml diagrama-visao-geral-interacao
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Visão Geral de Interação (UML 2)
+' Cada quadro "ref" é uma interação definida em um diagrama de sequência desta pasta.
+' O PlantUML não tem um tipo próprio para este diagrama: a notação é composta com a sintaxe de atividades.
+' As partições desenham os quadros "ref" e as caixas internas ficam sem borda.
+
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam activity {
+  BackgroundColor transparent
+  BorderColor transparent
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #333333
+  FontSize 12
+}
+skinparam partition {
+  BackgroundColor #E8F0F8
+  BorderColor #33526E
+  FontSize 11
+  FontStyle bold
+}
+skinparam DefaultTextAlignment center
+
+mainframe **sd** Visão Geral de Interação: Sistema de Moeda Estudantil
+
+start
+
+fork
+  :Início da aplicação ou\nverificação diária<
+  partition "ref" {
+    :UC11 Creditar Moedas\nSemestrais;
+  }
+
+fork again
+  repeat
+    if (Possui conta?) then (não)
+      switch (Quem se cadastra?)
+      case (aluno)
+        partition "ref" {
+          :UC02 Manter Cadastro de Aluno
+          (inclusão; inclui UC03);
+        }
+      case (empresa)
+        partition "ref" {
+          :UC04 Manter Cadastro de
+          Empresa Parceira (inclusão);
+        }
+      endswitch
+    else (sim)
+    endif
+    partition "ref" {
+      :UC01 Realizar Login;
+    }
+  repeat while (Credenciais válidas?) is (não) not (sim)
+
+  switch (Perfil autenticado?)
+  case (ALUNO)
+    repeat
+      switch (Operação?)
+      case (vantagens)
+        partition "ref" {
+          :UC08 Consultar
+          Vantagens;
+        }
+        if (Saldo suficiente\ne quer resgatar?) then (sim)
+          partition "ref" {
+            :UC09 Resgatar Vantagem
+            (inclui UC12 e UC10);
+          }
+        else (não)
+        endif
+      case (extrato)
+        partition "ref" {
+          :UC07 Consultar
+          Extrato;
+        }
+      case (empresas)
+        partition "ref" {
+          :UC14 Consultar
+          Empresas Parceiras;
+        }
+      case (cadastro)
+        partition "ref" {
+          :UC02 Manter
+          Cadastro de Aluno
+          (inclui UC03);
+        }
+      endswitch
+    repeat while (Continua na sessão?) is (sim) not (não)
+
+  case (PROFESSOR)
+    repeat
+      switch (Operação?)
+      case (enviar moedas)
+        partition "ref" {
+          :UC06 Enviar Moedas
+          (inclui UC13 e UC10);
+        }
+      case (alunos)
+        partition "ref" {
+          :UC13 Consultar Alunos
+          da Instituição;
+        }
+      case (extrato)
+        partition "ref" {
+          :UC07 Consultar
+          Extrato;
+        }
+      case (empresas)
+        partition "ref" {
+          :UC14 Consultar
+          Empresas Parceiras;
+        }
+      endswitch
+    repeat while (Continua na sessão?) is (sim) not (não)
+
+  case (EMPRESA)
+    repeat
+      switch (Operação?)
+      case (vantagens)
+        partition "ref" {
+          :UC05 Manter
+          Vantagens;
+        }
+      case (cadastro)
+        partition "ref" {
+          :UC04 Manter Cadastro
+          de Empresa Parceira;
+        }
+      endswitch
+    repeat while (Continua na sessão?) is (sim) not (não)
+  endswitch
+
+end fork
+
+stop
+
+@enduml

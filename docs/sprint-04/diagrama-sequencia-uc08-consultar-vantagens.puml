@@ -1,0 +1,52 @@
+@startuml diagrama-sequencia-uc08-consultar-vantagens
+' Sistema de Moeda Estudantil - PUC Minas - Projeto de Software
+' Lab04S01 - Diagrama de Sequência - UC08 Consultar Vantagens (RN09, US06)
+
+!include estilo-sequencia.iuml
+mainframe **sd** UC08 Consultar Vantagens
+
+actor Aluno
+box "View" #E8F0F8
+  participant ":VantagemCatalogo" as Tela
+  participant ":vantagemService\n(Axios)" as Front
+end box
+box "Controller" #FFF4D6
+  participant ":VantagemController" as Ctrl
+  participant ":ResourceHandler\n(FotosConfig)" as Recurso
+end box
+box "Model" #E7F6EC
+  participant ":VantagemService" as Svc
+  participant ":VantagemRepository" as Repo
+end box
+database "MySQL" as DB
+participant "Disco\n(UPLOAD_DIR)" as Disco
+
+Aluno -> Tela : abre "Vantagens"
+
+par carregamento da tela
+  Tela -> Front ++ : listar()
+  ref over Front, Ctrl : Autenticar Requisição (usuário autenticado)
+  Front -> Ctrl ++ : GET /api/vantagens
+  Ctrl -> Svc ++ : listarDisponiveis()
+  Svc -> Repo ++ : findByAtivaTrueOrderByNomeAsc()
+  Repo -> DB : SELECT vantagem JOIN empresa
+  Repo --> Svc -- : List<Vantagem>
+  Svc --> Ctrl -- : vantagens ativas
+  Ctrl --> Front -- : 200 List<VantagemResponseDTO>
+  Front --> Tela -- : vantagens
+else
+  ref over Tela, DB : UC07 Consultar Extrato (saldo atual)
+end
+
+loop para cada vantagem exibida
+  Tela -> Recurso ++ : GET /api/fotos/{arquivo} (rota pública)
+  Recurso -> Disco : lê o arquivo
+  Recurso --> Tela -- : imagem
+  alt custo maior que o saldo
+    Tela --> Aluno : mostra "Faltam N" (indisponível, US06)
+  else saldo suficiente
+    Tela --> Aluno : mostra o botão "Resgatar"
+  end
+end
+
+@enduml

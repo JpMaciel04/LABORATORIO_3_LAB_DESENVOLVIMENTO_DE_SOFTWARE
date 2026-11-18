@@ -867,10 +867,11 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 | **Lab03S02** | Modelo ER, estratégia de acesso ao banco (ORM/DAO), CRUDs de aluno e empresa parceira (versão inicial: front-end e comunicação com back-end) | ✅ Entregue |
 | **Lab03S03** | CRUDs de aluno e empresa parceira (versão final), apresentação da arquitetura e da camada de persistência (slides) | ✅ Entregue |
 | **Lab04S01** | Diagramas de Sequência, Diagrama de Visão Geral de Interação e implementação dos casos de uso restantes | ✅ Entregue |
-| **Lab04S02** | Diagrama de Implantação e implantação na nuvem (Vercel e Render) | 🟡 Front-end publicado na Vercel; falta a API no Render ([passo a passo](#163-passo-a-passo-da-publicação)) |
+| **Lab04S02** | Diagrama de Implantação e implantação na nuvem (Vercel e Render) | ✅ Entregue: [moeda-estudantil-opal.vercel.app](https://moeda-estudantil-opal.vercel.app) |
 
 ### Entregas da Lab04S02
 
+- **Aplicação na nuvem**: front-end em [moeda-estudantil-opal.vercel.app](https://moeda-estudantil-opal.vercel.app) (Vercel) e API em `moeda-estudantil-pucminas-api.onrender.com` (Render, com PostgreSQL 17) ([seção 16.4](#164-endereços)).
 - **Diagrama de Implantação** (UML 2): navegador, Vercel, Render (balanceador, contêiner Docker com a JVM e PostgreSQL), GitHub e servidor SMTP ([seção 16](#16-diagrama-de-implantação-e-implantação-na-nuvem)).
 - **Configuração da implantação**: [`render.yaml`](render.yaml) (Blueprint com a API e o banco), [`backend/Dockerfile`](backend/Dockerfile), perfil [`nuvem`](backend/src/main/resources/application-nuvem.properties) e [`frontend/vercel.json`](frontend/vercel.json).
 - **Mudanças para o sistema funcionar na nuvem** ([seção 16.2](#162-adaptações-para-a-nuvem)): suporte ao PostgreSQL, fotos no banco em vez do disco, CORS para a Vercel, proxy HTTPS, fuso horário, limites de memória e aviso de inicialização no login.
@@ -1172,11 +1173,14 @@ Pelo painel, o equivalente é importar o repositório em [vercel.com/new](https:
 | Serviço | Endereço |
 |---|---|
 | Front-end (Vercel) | [moeda-estudantil-opal.vercel.app](https://moeda-estudantil-opal.vercel.app) |
-| API REST (Render) | `https://moeda-estudantil-pucminas-api.onrender.com/api` *(aguardando a criação do Blueprint no Render)* |
+| API REST (Render) | `https://moeda-estudantil-pucminas-api.onrender.com/api` (ex.: [`/api/instituicoes`](https://moeda-estudantil-pucminas-api.onrender.com/api/instituicoes)) |
 
-Os logins de demonstração são os da [seção 12](#dados-da-carga-inicial), pois o perfil `demo` também está ativo na nuvem.
+Os logins de demonstração são os da [seção 12](#dados-da-carga-inicial), pois o perfil `demo` também está ativo na nuvem. Depois de 15 minutos sem acesso, a API é desligada, e o primeiro login seguinte pode levar cerca de um minuto (a tela de login avisa).
+
+![Catálogo de vantagens na nuvem, com a aluna Joana Silva logada](docs/sprint-05/telas/nuvem-catalogo.png)
 
 ### 16.5 Validação
 
 - **91 testes automatizados** passam, incluindo `PerfilNuvemPostgresTest`, que sobe um PostgreSQL 17 real e confere, no perfil `nuvem`, as migrações de `db/postgresql`, a validação do Hibernate, o envio de moedas, o resgate e as fotos.
 - **Nuvem simulada localmente**: o JAR foi executado com as mesmas opções de JVM do Dockerfile e os perfis `nuvem,demo`, sobre um PostgreSQL 17, e o front-end, compilado com `VITE_API_URL`, foi servido em outra origem. Foram conferidos o CORS (origem permitida e recusada), o login, o crédito semestral ao iniciar, o cadastro de vantagem com foto e o cabeçalho `Location` com `https` atrás do proxy. Depois de reiniciar a API, a foto e o token emitidos antes do reinício continuavam válidos.
+- **Na nuvem, depois da publicação**: a partir do endereço da Vercel, um navegador Chrome fez login como aluna e abriu o catálogo, com as cinco vantagens e as fotos servidas pela API, sem erros no console. Também foram conferidos o CORS (origem da Vercel aceita e outra origem recusada), a resposta 401 sem token, os logins dos três perfis e o horário de Brasília no crédito semestral gravado pela API.

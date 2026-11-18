@@ -4,7 +4,7 @@
 
 services:
   - type: web
-    name: moeda-estudantil-api
+    name: moeda-estudantil-pucminas-api
     runtime: docker
     plan: free
     # Região mais próxima do Brasil; o banco precisa estar na mesma região para usar a rede privada.
@@ -44,7 +44,7 @@ services:
       # Segredo fixo dos tokens: sem ele, todos teriam que entrar de novo a cada reinício da API.
       - key: JWT_SECRET
         generateValue: true
-      # Endereço do front-end na Vercel (ex.: https://moeda-estudantil.vercel.app), pedido na criação do Blueprint.
+      # Endereço do front-end na Vercel (ex.: https://moeda-estudantil-opal.vercel.app), pedido na criação do Blueprint.
       - key: CORS_ORIGINS
         sync: false
 

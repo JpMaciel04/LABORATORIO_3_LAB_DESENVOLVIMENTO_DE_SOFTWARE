@@ -867,7 +867,7 @@ java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -charset UTF-8 -tpng docs/spr
 | **Lab03S02** | Modelo ER, estratégia de acesso ao banco (ORM/DAO), CRUDs de aluno e empresa parceira (versão inicial: front-end e comunicação com back-end) | ✅ Entregue |
 | **Lab03S03** | CRUDs de aluno e empresa parceira (versão final), apresentação da arquitetura e da camada de persistência (slides) | ✅ Entregue |
 | **Lab04S01** | Diagramas de Sequência, Diagrama de Visão Geral de Interação e implementação dos casos de uso restantes | ✅ Entregue |
-| **Lab04S02** | Diagrama de Implantação e implantação na nuvem (Vercel e Render) | 🟡 Diagrama e configuração prontos; falta publicar ([passo a passo](#163-passo-a-passo-da-publicação)) |
+| **Lab04S02** | Diagrama de Implantação e implantação na nuvem (Vercel e Render) | 🟡 Front-end publicado na Vercel; falta a API no Render ([passo a passo](#163-passo-a-passo-da-publicação)) |
 
 ### Entregas da Lab04S02
 
@@ -1143,28 +1143,36 @@ Pré-requisito: o código desta versão enviado ao GitHub (`git push`).
 **1. API e banco no Render**
 
 1. Em [dashboard.render.com](https://dashboard.render.com), escolha **New → Blueprint** e selecione este repositório e a branch.
-2. O Render lê o [`render.yaml`](render.yaml) e lista o Web Service `moeda-estudantil-api` e o banco `moeda-estudantil-db`, ambos no plano free.
-3. Em `CORS_ORIGINS`, informe o endereço que o front-end terá na Vercel, como `https://moeda-estudantil.vercel.app`.
-4. Clique em **Apply**. O primeiro build da imagem leva alguns minutos; ao final, `https://moeda-estudantil-api.onrender.com/api/instituicoes` deve listar as três instituições.
+2. O Render lê o [`render.yaml`](render.yaml) e lista o Web Service `moeda-estudantil-pucminas-api` e o banco `moeda-estudantil-db`, ambos no plano free.
+3. Em `CORS_ORIGINS`, informe o endereço do front-end na Vercel: `https://moeda-estudantil-opal.vercel.app`.
+4. Clique em **Apply**. O primeiro build da imagem leva alguns minutos; ao final, `https://moeda-estudantil-pucminas-api.onrender.com/api/instituicoes` deve listar as três instituições.
 
 **2. Front-end na Vercel**
 
-1. Em [vercel.com/new](https://vercel.com/new), importe o repositório e defina **Root Directory** = `frontend`. O `vercel.json` já informa o preset Vite, o comando de build e a pasta `dist`.
-2. Em **Environment Variables**, crie `VITE_API_URL` com o endereço da API do passo 1, terminado em `/api` (ex.: `https://moeda-estudantil-api.onrender.com/api`).
-3. Clique em **Deploy**. Pelo terminal, o equivalente é `vercel login` e, na pasta `frontend`, `vercel --prod --build-env VITE_API_URL=<endereço da API>/api`.
+O projeto `moeda-estudantil` foi criado e publicado pelo terminal, na pasta `frontend`:
+
+```powershell
+cd frontend
+vercel login
+vercel link --yes --project moeda-estudantil
+vercel env add VITE_API_URL production --value "https://moeda-estudantil-pucminas-api.onrender.com/api" --yes
+vercel deploy --prod
+```
+
+Pelo painel, o equivalente é importar o repositório em [vercel.com/new](https://vercel.com/new) com **Root Directory** = `frontend` e a mesma variável `VITE_API_URL`. O `vercel.json` já informa o preset Vite, o comando de build e a pasta `dist`. Como `VITE_API_URL` entra no build, qualquer mudança nela exige uma nova publicação.
 
 **3. Ajustes finais**
 
-- Se o endereço final da Vercel for diferente do informado no passo 1, corrija `CORS_ORIGINS` em **Environment**, no painel do Render; a API reinicia sozinha.
-- E-mails reais (opcional): em **Environment**, defina `SPRING_MAIL_HOST=smtp-relay.brevo.com`, `SPRING_MAIL_PORT=2525`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true` e `MAIL_FROM` (um remetente validado no Brevo).
-- Cada `git push` na branch publicada gera uma nova implantação nos dois serviços. No Render, só alterações em `backend/` disparam um novo build.
+- Se o Render atribuir à API um endereço diferente de `moeda-estudantil-pucminas-api.onrender.com`, atualize `VITE_API_URL` na Vercel (`vercel env update VITE_API_URL production --value <endereço>/api --yes`) e publique de novo o front-end.
+- E-mails reais (opcional): em **Environment**, no painel do Render, defina `SPRING_MAIL_HOST=smtp-relay.brevo.com`, `SPRING_MAIL_PORT=2525`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true` e `MAIL_FROM` (um remetente validado no Brevo). A API reinicia sozinha.
+- Novas versões: no Render, cada `git push` na branch publicada gera uma nova implantação, mas só quando muda algo em `backend/`. Na Vercel, rode `vercel deploy --prod` na pasta `frontend`; para publicar a cada push, conecte o repositório em **Settings → Git** e defina **Root Directory** = `frontend`.
 
 ### 16.4 Endereços
 
 | Serviço | Endereço |
 |---|---|
-| Front-end (Vercel) | *a preencher após a publicação* |
-| API REST (Render) | *a preencher após a publicação* |
+| Front-end (Vercel) | [moeda-estudantil-opal.vercel.app](https://moeda-estudantil-opal.vercel.app) |
+| API REST (Render) | `https://moeda-estudantil-pucminas-api.onrender.com/api` *(aguardando a criação do Blueprint no Render)* |
 
 Os logins de demonstração são os da [seção 12](#dados-da-carga-inicial), pois o perfil `demo` também está ativo na nuvem.
 

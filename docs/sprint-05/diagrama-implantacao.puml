@@ -32,7 +32,7 @@ node "Computador ou celular\ndo usuário" <<device>> as Cliente {
 
 ' ===================== Vercel (View) =====================
 node "Vercel" <<device>> as Vercel {
-  node "Rede de borda (CDN)\nmoeda-estudantil.vercel.app" <<executionEnvironment>> as Cdn {
+  node "Rede de borda (CDN)\nmoeda-estudantil-opal.vercel.app" <<executionEnvironment>> as Cdn {
     artifact "frontend/dist\n(build do Vite)" as Dist
   }
   artifact "vercel.json\nVITE_API_URL" <<deployment spec>> as VercelSpec
@@ -40,7 +40,7 @@ node "Vercel" <<device>> as Vercel {
 
 ' ===================== Render (Controller + Model) =====================
 node "Render — região Virginia (EUA)" <<device>> as Render {
-  node "Balanceador de carga (HTTPS)\nmoeda-estudantil-api.onrender.com" <<device>> as Balanceador
+  node "Balanceador de carga (HTTPS)\nmoeda-estudantil-pucminas-api.onrender.com" <<device>> as Balanceador
 
   node "Web Service — plano free\n0,1 CPU · 512 MB\n(desligado após 15 min sem acesso)" <<device>> as WebService {
     node "Contêiner Docker\neclipse-temurin:21-jre" <<executionEnvironment>> as Conteiner {
@@ -77,7 +77,7 @@ Jvm -- Smtp : SMTP + STARTTLS\nporta 2525
 Dist ..> SpaCliente : <<download>>
 VercelSpec ..> Dist
 RenderSpec ..> Jar
-Dist <.. Repositorio : <<deploy>>\ngit push → npm run build
+Dist <.. Repositorio : <<deploy>>\nvercel deploy --prod → npm run build
 Jar <.. Repositorio : <<deploy>>\ngit push → docker build
 
 legend right

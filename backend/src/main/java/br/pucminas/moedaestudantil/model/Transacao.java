@@ -14,6 +14,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Movimentação de moedas entre contas.
@@ -54,6 +56,27 @@ public abstract class Transacao {
     }
 
     public abstract String getDescricao();
+
+    /**
+     * GRASP Especialista na Informação: a própria transação sabe se tem determinada conta como destino.
+     */
+    public boolean temComoDestino(Conta conta) {
+        return contaDestino != null && conta != null && contaDestino.getId().equals(conta.getId());
+    }
+
+    /**
+     * GRASP Especialista na Informação: fornece os IDs das contas envolvidas na transação.
+     */
+    public Set<Long> getIdsContasEnvolvidas() {
+        Set<Long> ids = new HashSet<>();
+        if (contaOrigem != null && contaOrigem.getId() != null) {
+            ids.add(contaOrigem.getId());
+        }
+        if (contaDestino != null && contaDestino.getId() != null) {
+            ids.add(contaDestino.getId());
+        }
+        return ids;
+    }
 
     public Long getId() {
         return id;

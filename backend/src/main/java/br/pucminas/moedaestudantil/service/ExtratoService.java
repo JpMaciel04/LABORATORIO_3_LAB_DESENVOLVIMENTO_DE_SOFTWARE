@@ -1,11 +1,8 @@
 package br.pucminas.moedaestudantil.service;
 
 import br.pucminas.moedaestudantil.exception.RecursoNaoEncontradoException;
-import br.pucminas.moedaestudantil.exception.RegraNegocioException;
-import br.pucminas.moedaestudantil.model.Aluno;
 import br.pucminas.moedaestudantil.model.Conta;
 import br.pucminas.moedaestudantil.model.Extrato;
-import br.pucminas.moedaestudantil.model.Professor;
 import br.pucminas.moedaestudantil.model.Transacao;
 import br.pucminas.moedaestudantil.model.Usuario;
 import br.pucminas.moedaestudantil.repository.AlunoRepository;
@@ -43,17 +40,9 @@ public class ExtratoService {
     public Extrato consultarExtrato(Long usuarioId) {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário " + usuarioId + " não encontrado."));
-        Conta conta = contaDe(usuario);
+        Conta conta = usuario.getConta();
         List<Transacao> transacoes = transacaoRepository.findByConta(conta);
         return new Extrato(conta, transacoes, buscarTitulares(conta, transacoes));
-    }
-
-    private static Conta contaDe(Usuario usuario) {
-        return switch (usuario) {
-            case Aluno aluno -> aluno.getConta();
-            case Professor professor -> professor.getConta();
-            default -> throw new RegraNegocioException("Este perfil não possui conta de moedas.");
-        };
     }
 
     /** Busca os nomes de uma só vez, em vez de uma consulta por transação (problema N+1). */
@@ -61,12 +50,7 @@ public class ExtratoService {
         Set<Long> contaIds = new HashSet<>();
         contaIds.add(conta.getId());
         for (Transacao transacao : transacoes) {
-            if (transacao.getContaOrigem() != null) {
-                contaIds.add(transacao.getContaOrigem().getId());
-            }
-            if (transacao.getContaDestino() != null) {
-                contaIds.add(transacao.getContaDestino().getId());
-            }
+            contaIds.addAll(transacao.getIdsContasEnvolvidas());
         }
 
         Map<Long, String> titulares = new HashMap<>();

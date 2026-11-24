@@ -25,9 +25,9 @@ public class Extrato {
         return transacoes;
     }
 
-    /** Verdadeiro quando a transação adicionou moedas a esta conta. */
+    /** Verdadeiro quando a transação adicionou moedas a esta conta (GRASP Especialista na Informação). */
     public boolean isEntrada(Transacao transacao) {
-        return transacao.getContaDestino() != null && transacao.getContaDestino().getId().equals(conta.getId());
+        return transacao.temComoDestino(conta);
     }
 
     public String getTitular(Conta outraConta) {

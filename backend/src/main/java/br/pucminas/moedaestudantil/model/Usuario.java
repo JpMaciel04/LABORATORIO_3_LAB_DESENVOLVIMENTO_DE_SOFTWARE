@@ -1,5 +1,6 @@
 package br.pucminas.moedaestudantil.model;
 
+import br.pucminas.moedaestudantil.exception.RegraNegocioException;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.DiscriminatorType;
@@ -45,6 +46,14 @@ public abstract class Usuario {
 
     /** Define as funcionalidades que o usuário pode acessar depois do login. */
     public abstract Perfil getPerfil();
+
+    /**
+     * GRASP Polimorfismo: cada subtipo que possui conta de moedas sobrescreve este método,
+     * evitando estruturas condicionais por tipo (switch/instanceof) nos serviços.
+     */
+    public Conta getConta() {
+        throw new RegraNegocioException("Este perfil não possui conta de moedas.");
+    }
 
     public Long getId() {
         return id;

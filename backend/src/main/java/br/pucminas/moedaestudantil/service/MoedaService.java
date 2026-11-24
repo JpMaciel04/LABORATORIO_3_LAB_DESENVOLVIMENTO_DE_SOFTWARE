@@ -3,7 +3,6 @@ package br.pucminas.moedaestudantil.service;
 import br.pucminas.moedaestudantil.exception.RecursoNaoEncontradoException;
 import br.pucminas.moedaestudantil.exception.RegraNegocioException;
 import br.pucminas.moedaestudantil.model.Aluno;
-import br.pucminas.moedaestudantil.model.CreditoSemestral;
 import br.pucminas.moedaestudantil.model.EnvioMoedas;
 import br.pucminas.moedaestudantil.model.Professor;
 import br.pucminas.moedaestudantil.repository.AlunoRepository;
@@ -35,13 +34,8 @@ public class MoedaService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Professor " + professorId + " não encontrado."));
         Aluno aluno = alunoRepository.findByIdAndAtivoTrue(alunoId)
                 .orElseThrow(() -> new RegraNegocioException("alunoId", "Selecione um aluno cadastrado."));
-        if (!professor.getInstituicao().getId().equals(aluno.getInstituicao().getId())) {
-            throw new RegraNegocioException("alunoId", "Só é possível enviar moedas a alunos da sua instituição.");
-        }
 
-        professor.getConta().debitar(valor);
-        aluno.getConta().creditar(valor);
-        EnvioMoedas envio = transacaoRepository.save(new EnvioMoedas(professor, aluno, valor, motivo));
+        EnvioMoedas envio = transacaoRepository.save(professor.enviarMoedas(aluno, valor, motivo));
 
         notificacaoService.notificarRecebimentoMoedas(envio, professor, aluno);
         return envio;
@@ -58,8 +52,7 @@ public class MoedaService {
         int creditados = 0;
         for (Professor professor : professorRepository.findByAtivoTrue()) {
             if (!transacaoRepository.existsCreditoSemestral(professor, semestre)) {
-                professor.getConta().creditar(CreditoSemestral.MOEDAS_POR_SEMESTRE);
-                transacaoRepository.save(new CreditoSemestral(professor, semestre));
+                transacaoRepository.save(professor.receberCreditoSemestral(semestre));
                 creditados++;
             }
         }

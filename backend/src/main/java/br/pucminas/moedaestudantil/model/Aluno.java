@@ -42,6 +42,22 @@ public class Aluno extends Usuario {
         return Perfil.ALUNO;
     }
 
+    /**
+     * GRASP Especialista na Informação: encapsula o crédito de moedas na conta do aluno.
+     */
+    public void receberMoedas(int valor) {
+        this.conta.creditar(valor);
+    }
+
+    /**
+     * GRASP Especialista na Informação e Criador: debita o custo da vantagem do saldo do aluno (RN10)
+     * e instancia a transação ResgateVantagem com código de cupom único (RN11).
+     */
+    public ResgateVantagem resgatar(Vantagem vantagem) {
+        this.conta.debitar(vantagem.getCustoMoedas());
+        return new ResgateVantagem(this, vantagem);
+    }
+
     public String getCpf() {
         return cpf;
     }
@@ -82,6 +98,7 @@ public class Aluno extends Usuario {
         this.instituicao = instituicao;
     }
 
+    @Override
     public Conta getConta() {
         return conta;
     }
